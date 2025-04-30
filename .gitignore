@@ -1,0 +1,58 @@
+/vendor/
+/node_modules/
+
+# Environment files
+.env
+.env.backup
+.env.testing
+
+# IDE directories and files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+Thumbs.db
+._*
+
+# Compiled files
+*.phar
+*.zip
+*.tar
+*.tar.gz
+*.rar
+
+# Log files
+logs/
+*.log
+
+# Cache files
+bootstrap/cache/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*.log
+
+# Coverage reports
+coverage/
+*.phpunit.result.cache
+
+# PHPStan cache
+.phpstan.cache
+
+# Composer
+composer.lock
+composer.phar
+
+# Testbench
+/testbench-dusk/
+bootstrap/cache/packages.php
+bootstrap/cache/services.php
+
+# Pint cache
+.pint.cache 

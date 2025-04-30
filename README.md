@@ -1,1 +1,89 @@
-# laravel-ai
+# Laravel AI Client
+
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/bramato/laravel-ai.svg?style=flat-square)](https://packagist.org/packages/bramato/laravel-ai)
+[![Total Downloads](https://img.shields.io/packagist/dt/bramato/laravel-ai.svg?style=flat-square)](https://packagist.org/packages/bramato/laravel-ai)
+
+This package provides a unified Laravel client to interact with the chat APIs of various Large Language Models (LLMs) such as ChatGPT (OpenAI), Gemini (Google), Claude (Anthropic), and DeepSeek.
+
+The goal is to abstract the differences between the APIs, offering a single, consistent interface within the Laravel framework.
+
+## Core Structure
+
+The core of the package is the `Bramato\LaravelAi\Contracts\LlmClientInterface` interface, which defines the contract for interacting with LLM providers.
+
+```php
+namespace Bramato\LaravelAi\Contracts;
+
+use Bramato\LaravelAi\DTOs\ChatRequest;
+use Bramato\LaravelAi\DTOs\ChatResponse;
+
+interface LlmClientInterface
+{
+    public function chat(ChatRequest $request): ChatResponse;
+}
+```
+
+## Installation (TODO)
+
+You can install the package via composer:
+
+```bash
+composer require bramato/laravel-ai
+```
+
+## Configuration (TODO)
+
+Publish the configuration file:
+
+```bash
+php artisan vendor:publish --provider="Bramato\LaravelAi\LaravelAiServiceProvider" --tag="config"
+```
+
+Set the API keys and other options in your `.env` file and/or `config/laravel-ai.php`.
+
+## Usage (TODO)
+
+```php
+use Bramato\LaravelAi\Contracts\LlmClientInterface;
+use Bramato\LaravelAi\DTOs\ChatRequest;
+
+// Via Dependency Injection
+$client = app(LlmClientInterface::class);
+
+$request = new ChatRequest(prompt: 'What is the meaning of life?');
+
+$response = $client->chat($request);
+
+echo $response->content;
+
+// Via Facade (if configured)
+// use Bramato\LaravelAi\Facades\LaravelAi;
+// $response = LaravelAi::chat($request);
+```
+
+## Testing (TODO)
+
+```bash
+composer test
+```
+
+## Changelog
+
+Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
+
+## Contributing
+
+Please see [CONTRIBUTING](.github/CONTRIBUTING.md) for details.
+
+## Security Vulnerabilities
+
+Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
+
+## Credits
+
+-   [Bramato](https://github.com/bramato)
+-   [All Contributors](../../contributors)
+
+## License
+
+The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
