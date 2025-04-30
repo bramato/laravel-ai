@@ -9,7 +9,7 @@ The goal is to abstract the differences between the APIs, offering a single, con
 
 ## Core Structure
 
-The core of the package is the `Bramato\LaravelAi\Contracts\LlmClientInterface` interface, which defines the contract for interacting with LLM providers.
+The core of the package is the `Bramato\LaravelAi\Contracts\LlmClientInterface` interface, which defines the contract for interacting with LLM providers. Data Transfer Objects (DTOs) are implemented using the [`wendelladriel/laravel-validated-dto`](https://github.com/WendellAdriel/laravel-validated-dto) package to ensure data consistency and validation.
 
 ```php
 namespace Bramato\LaravelAi\Contracts;
@@ -20,6 +20,35 @@ use Bramato\LaravelAi\DTOs\ChatResponse;
 interface LlmClientInterface
 {
     public function chat(ChatRequest $request): ChatResponse;
+}
+```
+
+The `ChatRequest` and `ChatResponse` DTOs handle the data structure for requests and responses:
+
+```php
+// src/DTOs/ChatRequest.php highlights
+class ChatRequest extends ValidatedDTO
+{
+    public string $prompt;
+    public ?string $systemMessage;
+    public array $history;
+    public array $options;
+    public bool $jsonMode;
+    // ... validation, defaults, casts ...
+}
+
+// src/DTOs/ChatResponse.php highlights
+class ChatResponse extends SimpleDTO
+{
+    public string $content;
+    public string $finishReason;
+    public string $model;
+    public string $id;
+    public ?array $usage;
+    public bool $isJson;
+    public mixed $decodedJsonContent;
+    public ?array $rawResponse;
+    // ... defaults, casts ...
 }
 ```
 
@@ -50,7 +79,14 @@ use Bramato\LaravelAi\DTOs\ChatRequest;
 // Via Dependency Injection
 $client = app(LlmClientInterface::class);
 
-$request = new ChatRequest(prompt: 'What is the meaning of life?');
+$request = new ChatRequest(
+    prompt: 'What is the meaning of life?',
+    // Optional parameters:
+    // systemMessage: 'You are a helpful assistant.',
+    // history: [ ['role' => 'user', 'content' => 'Previous question'] ],
+    // options: ['temperature' => 0.7],
+    // jsonMode: false
+);
 
 $response = $client->chat($request);
 
@@ -87,3 +123,7 @@ Please review [our security policy](../../security/policy) on how to report secu
 ## License
 
 The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+
+## Client Implementations
+
+The package uses the Strategy pattern, with concrete client implementations for each supported provider residing in the `src/Clients/` directory (e.g., `OpenAiClient.php`).

@@ -1,0 +1,166 @@
+# Istruzioni per l'uso di laravel-validated-dto
+
+Basato sulla documentazione ufficiale: [https://wendell-adriel.gitbook.io/](https://wendell-adriel.gitbook.io/)
+
+## Concetti Base
+
+*   I DTO estendono `WendellAdriel\ValidatedDTO\ValidatedDTO` per la validazione automatica o `WendellAdriel\ValidatedDTO\SimpleDTO` se non è necessaria la validazione all'istanziazione (utile per le risposte).
+*   Le proprietà sono definite come proprietà pubbliche nella classe DTO.
+*   La validazione avviene all'istanziazione del DTO (es. `new MyDTO(['key' => 'value'])`).
+
+## Definire Regole di Validazione
+
+*   Si definisce un metodo `rules(): array` nella classe DTO, simile alle Form Request di Laravel.
+*   Le chiavi dell'array sono i nomi delle proprietà pubbliche del DTO.
+*   I valori sono le regole di validazione standard di Laravel (stringhe separate da `|` o array di regole).
+
+```php
+use WendellAdriel\ValidatedDTO\ValidatedDTO;
+
+class UserRequestDTO extends ValidatedDTO
+{
+    public string $name;
+    public string $email;
+    public ?string $password = null; // Proprietà opzionale con valore di default null
+
+    protected function rules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'unique:users,email'],
+            'password' => ['sometimes', 'string', 'min:8'], // 'sometimes' se opzionale
+        ];
+    }
+
+    // ... altri metodi ...
+}
+```
+
+## Valori di Default
+
+*   Si definisce un metodo `defaults(): array`.
+*   Le chiavi sono i nomi delle proprietà, i valori sono i valori di default.
+*   Questi vengono applicati *prima* della validazione.
+
+```php
+protected function defaults(): array
+{
+    return [
+        'is_active' => true,
+    ];
+}
+```
+
+## Messaggi di Errore e Attributi Personalizzati
+
+*   Definire metodi `messages(): array` e `attributes(): array` come nelle Form Request.
+
+```php
+protected function messages(): array
+{
+    return [
+        'email.required' => 'L\'indirizzo email è obbligatorio.',
+    ];
+}
+
+protected function attributes(): array
+{
+    return [
+        'email' => 'indirizzo email',
+    ];
+}
+```
+
+## Casting delle Proprietà
+
+*   Simile al casting degli attributi dei modelli Eloquent.
+*   Si definisce un metodo `casts(): array`.
+*   Le chiavi sono i nomi delle proprietà, i valori sono i tipi di cast desiderati.
+*   I cast vengono applicati *dopo* la validazione.
+
+**Tipi di Cast Disponibili:**
+
+*   `string`: Converte in stringa.
+*   `int` o `integer`: Converte in intero.
+*   `float` o `double`: Converte in float.
+*   `bool` o `boolean`: Converte in booleano.
+*   `array`: Converte in array (da JSON o stringa delimitata).
+*   `date`: Converte in oggetto `Carbon` da una stringa data/datetime.
+*   `datetime`: Alias di `date`.
+*   `timestamp`: Converte in timestamp Unix.
+*   `dto`: Converte un array o un oggetto in un'altra istanza di `ValidatedDTO`.
+*   `collection`: Converte un array di dati in una Collection di `ValidatedDTO`.
+*   `enum`: Converte un valore in un'istanza di Enum PHP (richiede il nome completo della classe Enum).
+
+**Esempio di Casting:**
+
+```php
+use Carbon\Carbon;
+use App\Enums\UserRole;
+use App\DTOs\AddressDTO; // Un altro DTO
+use Illuminate\Support\Collection;
+
+class UserProfileDTO extends ValidatedDTO
+{
+    public string $username;
+    public int $age;
+    public bool $newsletter;
+    public Carbon $birthdate;
+    public AddressDTO $address; // Nested DTO
+    public Collection $tags; // Collection di TagDTO
+    public UserRole $role;
+
+    // ... rules() ...
+
+    protected function casts(): array
+    {
+        return [
+            'age' => 'int',
+            'newsletter' => 'bool',
+            'birthdate' => 'date',
+            'address' => 'dto:' . AddressDTO::class,
+            'tags' => 'collection:' . TagDTO::class, // Assumendo esista un TagDTO
+            'role' => 'enum:' . UserRole::class,
+        ];
+    }
+}
+```
+
+## SimpleDTO (per Risposte)
+
+*   Estende `WendellAdriel\ValidatedDTO\SimpleDTO`.
+*   Non esegue validazioni all'istanziazione.
+*   Supporta i metodi `defaults()`, `casts()`, e `map()` (vedi sotto).
+*   Utile per strutturare e castare dati *in uscita* (es. risposte API).
+
+## Mappatura (`map()`)
+
+*   Permette di definire come le chiavi dei dati di input vengono mappate alle proprietà del DTO.
+*   Utile se i nomi delle chiavi nell'input non corrispondono ai nomi delle proprietà.
+*   Si definisce un metodo `map(): array`.
+*   Le chiavi sono i nomi delle proprietà del DTO, i valori sono i nomi delle chiavi nell'array di input.
+
+```php
+class ProductDTO extends ValidatedDTO
+{
+    public string $productName;
+    public float $productPrice;
+
+    // ... rules() ...
+
+    protected function map(): array
+    {
+        return [
+            'productName' => 'name_from_api',
+            'productPrice' => 'price',
+        ];
+    }
+}
+
+// Istanziazione:
+$dto = new ProductDTO([
+    'name_from_api' => 'Super Widget',
+    'price' => 99.99
+]);
+// $dto->productName sarà 'Super Widget'
+``` 
