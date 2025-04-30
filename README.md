@@ -93,8 +93,10 @@ $response = $client->chat($request);
 echo $response->content;
 
 // Via Facade (if configured)
-// use Bramato\LaravelAi\Facades\LaravelAi;
-// $response = LaravelAi::chat($request);
+use Bramato\LaravelAi\Facades\LaravelAi;
+
+$responseViaFacade = LaravelAi::chat($request);
+echo $responseViaFacade->content;
 ```
 
 ## Testing (TODO)
