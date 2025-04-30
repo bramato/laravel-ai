@@ -6,7 +6,7 @@ All notable changes to `bramato/laravel-ai` will be documented in this file.
 
 ### Added
 
--   **LlmModel Eloquent Model:** Introduced `Bramato\LaravelAi\Models\LlmModel` using `calebporzio/sushi` to list available LLM models and their capabilities (`provider`, `model_id`, `context_window`, `json_mode`, `supports_vision`, `max_output_tokens`).
+-   **LlmModel Eloquent Model:** Introduced `Bramato\LaravelAi\Models\LlmModel` using `calebporzio/sushi` to list available LLM models and their capabilities (`provider`, `model_id`, `context_window`, `json_mode`, `supports_vision`, `max_output_tokens`, `flagship`). Also added static helper methods (`openAiFlagship()`, `geminiFlagship()`, `claudeFlagship()`, `deepSeekFlagship()`) to retrieve the designated flagship model for each provider.
 -   **ChatService:** Added `Bramato\LaravelAi\Services\ChatService` for managing stateful multi-turn conversations.
     -   Handles internal history management.
     -   Static `create()` method for easy session initialization.

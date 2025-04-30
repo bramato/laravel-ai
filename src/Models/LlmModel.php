@@ -22,6 +22,7 @@ class LlmModel extends Model
         'json_mode',
         'supports_vision',
         'max_output_tokens',
+        'flagship',
     ];
 
     /**
@@ -32,6 +33,7 @@ class LlmModel extends Model
     protected $attributes = [
         'json_mode' => false,
         'supports_vision' => false,
+        'flagship' => false,
     ];
 
     /**
@@ -49,6 +51,7 @@ class LlmModel extends Model
             'json_mode' => true, // Function Calling (Strict), Structured Outputs (Chat Completions)
             'supports_vision' => true, // Solo Input
             'max_output_tokens' => 32768,
+            'flagship' => true,
         ],
         [
             'provider' => 'openai',
@@ -58,6 +61,7 @@ class LlmModel extends Model
             'json_mode' => true, // Function Calling (Strict), Structured Outputs (Chat Completions)
             'supports_vision' => true, // Solo Input
             'max_output_tokens' => 32768,
+            'flagship' => false,
         ],
         [
             'provider' => 'openai',
@@ -67,6 +71,7 @@ class LlmModel extends Model
             'json_mode' => true, // Function Calling (Strict), Structured Outputs (Chat Completions)
             'supports_vision' => true, // Solo Input
             'max_output_tokens' => 32768,
+            'flagship' => false,
         ],
         [
             'provider' => 'openai',
@@ -76,6 +81,7 @@ class LlmModel extends Model
             'json_mode' => true, // JSON Object mode, Structured Outputs via json_schema, Function Calling
             'supports_vision' => true, // Input/Output via tools
             'max_output_tokens' => 16384,
+            'flagship' => false,
         ],
         [
             'provider' => 'openai',
@@ -85,6 +91,7 @@ class LlmModel extends Model
             'json_mode' => true, // JSON Object mode, Structured Outputs via json_schema, Function Calling
             'supports_vision' => true, // Input/Output via tools
             'max_output_tokens' => 16384,
+            'flagship' => false,
         ],
         [
             'provider' => 'openai',
@@ -94,6 +101,7 @@ class LlmModel extends Model
             'json_mode' => true, // Structured Outputs, Function Calling
             'supports_vision' => true, // Solo Input
             'max_output_tokens' => 100000,
+            'flagship' => false,
         ],
         [
             'provider' => 'openai',
@@ -103,6 +111,7 @@ class LlmModel extends Model
             'json_mode' => true, // Structured Outputs, Function Calling
             'supports_vision' => false,
             'max_output_tokens' => 100000,
+            'flagship' => false,
         ],
         [
             'provider' => 'openai',
@@ -112,6 +121,7 @@ class LlmModel extends Model
             'json_mode' => true, // JSON Object mode, Function Calling
             'supports_vision' => false,
             'max_output_tokens' => 4096,
+            'flagship' => false,
         ],
 
         // Google Gemini Models
@@ -123,6 +133,7 @@ class LlmModel extends Model
             'json_mode' => true, // Structured Outputs
             'supports_vision' => true, // Audio, Immagine, Video, Testo In; Testo Out
             'max_output_tokens' => 65536,
+            'flagship' => true,
         ],
         [
             'provider' => 'google',
@@ -132,6 +143,7 @@ class LlmModel extends Model
             'json_mode' => true, // Structured Outputs
             'supports_vision' => true, // Audio, Immagine, Video, Testo In; Testo Out
             'max_output_tokens' => 65536,
+            'flagship' => false,
         ],
         [
             'provider' => 'google',
@@ -141,6 +153,7 @@ class LlmModel extends Model
             'json_mode' => true, // Structured Outputs
             'supports_vision' => true, // Audio, Immagine, Video, Testo In; Testo, Immagine(exp), Audio(soon) Out
             'max_output_tokens' => 8192,
+            'flagship' => false,
         ],
         [
             'provider' => 'google',
@@ -150,6 +163,7 @@ class LlmModel extends Model
             'json_mode' => true, // Structured Outputs
             'supports_vision' => true, // Audio, Immagine, Video, Testo In; Testo Out
             'max_output_tokens' => 8192,
+            'flagship' => false,
         ],
         [
             'provider' => 'google',
@@ -159,6 +173,7 @@ class LlmModel extends Model
             'json_mode' => true, // JSON mode, JSON schema
             'supports_vision' => true, // Audio, Immagine, Video, Testo In; Testo/Codice/JSON Out
             'max_output_tokens' => 8192,
+            'flagship' => false,
         ],
         [
             'provider' => 'google',
@@ -168,6 +183,7 @@ class LlmModel extends Model
             'json_mode' => true, // JSON mode, JSON schema
             'supports_vision' => true, // Audio, Immagine, Video, Testo In; Testo/Codice/JSON Out
             'max_output_tokens' => 8192,
+            'flagship' => false,
         ],
         [
             'provider' => 'google',
@@ -177,6 +193,7 @@ class LlmModel extends Model
             'json_mode' => false, // Non ufficiale, inaffidabile
             'supports_vision' => false, // Solo Testo/Codice
             'max_output_tokens' => 8192,
+            'flagship' => false,
         ],
         [
             'provider' => 'google',
@@ -186,6 +203,7 @@ class LlmModel extends Model
             'json_mode' => false,
             'supports_vision' => true, // Immagine, Frame Video, Testo In; Testo/Codice Out
             'max_output_tokens' => 4096,
+            'flagship' => false,
         ],
 
         // DeepSeek Models
@@ -197,6 +215,7 @@ class LlmModel extends Model
             'json_mode' => false, // Non Specificato/No (API)
             'supports_vision' => false, // No (API)
             'max_output_tokens' => 8192, // API limit (default 4k)
+            'flagship' => true,
         ],
         [
             'provider' => 'deepseek',
@@ -206,6 +225,7 @@ class LlmModel extends Model
             'json_mode' => false, // Non Specificato/No (API)
             'supports_vision' => false, // No (API)
             'max_output_tokens' => 8192, // API limit (default 4k, + 32k CoT)
+            'flagship' => false,
         ],
 
         // Anthropic Claude Models
@@ -217,6 +237,7 @@ class LlmModel extends Model
             'json_mode' => true, // Via Tool Use
             'supports_vision' => true,
             'max_output_tokens' => 64000,
+            'flagship' => true,
         ],
         [
             'provider' => 'anthropic',
@@ -226,6 +247,7 @@ class LlmModel extends Model
             'json_mode' => true, // Via Tool Use
             'supports_vision' => true,
             'max_output_tokens' => 8192,
+            'flagship' => false,
         ],
         [
             'provider' => 'anthropic',
@@ -235,6 +257,7 @@ class LlmModel extends Model
             'json_mode' => true, // Via Tool Use
             'supports_vision' => true,
             'max_output_tokens' => 8192,
+            'flagship' => false,
         ],
         [
             'provider' => 'anthropic',
@@ -244,6 +267,7 @@ class LlmModel extends Model
             'json_mode' => true, // Via Tool Use
             'supports_vision' => true,
             'max_output_tokens' => 4096,
+            'flagship' => false,
         ],
         [
             'provider' => 'anthropic',
@@ -253,6 +277,7 @@ class LlmModel extends Model
             'json_mode' => true, // Via Tool Use
             'supports_vision' => true,
             'max_output_tokens' => 4096,
+            'flagship' => false,
         ],
         [
             'provider' => 'anthropic',
@@ -262,6 +287,7 @@ class LlmModel extends Model
             'json_mode' => true, // Via Tool Use
             'supports_vision' => true,
             'max_output_tokens' => 4096,
+            'flagship' => false,
         ],
     ];
 
@@ -275,6 +301,7 @@ class LlmModel extends Model
         'json_mode' => 'boolean',
         'supports_vision' => 'boolean',
         'max_output_tokens' => 'integer',
+        'flagship' => 'boolean',
     ];
 
     // Sushi specific: Define schema if needed for type hints or relationships
@@ -288,6 +315,41 @@ class LlmModel extends Model
             'json_mode' => 'boolean',
             'supports_vision' => 'boolean',
             'max_output_tokens' => 'integer',
+            'flagship' => 'boolean',
         ];
+    }
+
+    // Static methods to get flagship models
+
+    /**
+     * Get the flagship OpenAI model.
+     */
+    public static function openAiFlagship(): ?self
+    {
+        return static::where('provider', 'openai')->where('flagship', true)->first();
+    }
+
+    /**
+     * Get the flagship Google Gemini model.
+     */
+    public static function geminiFlagship(): ?self
+    {
+        return static::where('provider', 'google')->where('flagship', true)->first();
+    }
+
+    /**
+     * Get the flagship Anthropic Claude model.
+     */
+    public static function claudeFlagship(): ?self
+    {
+        return static::where('provider', 'anthropic')->where('flagship', true)->first();
+    }
+
+    /**
+     * Get the flagship DeepSeek model.
+     */
+    public static function deepSeekFlagship(): ?self
+    {
+        return static::where('provider', 'deepseek')->where('flagship', true)->first();
     }
 }

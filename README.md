@@ -233,6 +233,7 @@ The `LlmModel` has the following attributes:
 -   `json_mode` (bool): Indicates if the model supports a dedicated JSON output mode (or if the package can reliably extract JSON via specific instructions, like with Claude).
 -   `supports_vision` (bool): Indicates if the model can process image input.
 -   `max_output_tokens` (int): The maximum number of tokens the model can generate in a single response.
+-   `flagship` (bool): Indicates if this model is considered the primary/most capable model for the provider within this package's list (useful for selecting a default powerful model).
 
 You can query this model like any other Eloquent model:
 
@@ -258,6 +259,15 @@ if ($gpt4o) {
     echo "GPT-4o Context Window: " . $gpt4o->context_window;
     echo "Supports Vision? " . ($gpt4o->supports_vision ? 'Yes' : 'No');
 }
+
+// Get the flagship model for a specific provider
+$flagshipClaude = LlmModel::claudeFlagship();
+if ($flagshipClaude) {
+    echo "Claude Flagship: " . $flagshipClaude->model_id;
+}
+
+// Get all flagship models
+$allFlagships = LlmModel::where('flagship', true)->get();
 ```
 
 This can be useful for dynamically presenting model options to users or for making decisions within your application based on model capabilities. The model data is based on research at the time of release and may evolve.
