@@ -220,6 +220,48 @@ try {
 -   **Gemini History:** Requires alternating `user` and `model` (maps from `assistant`) roles. The conversation must start with a `user` role.
 -   **System Prompts:** Implementation varies slightly. The package maps the `systemMessage` DTO property to the appropriate mechanism (`system` parameter for Claude, first `user` message followed by `model` placeholder for Gemini, first `system` message for OpenAI/DeepSeek).
 
+## Available Models (LlmModel)
+
+Starting from version 1.1, the package includes an Eloquent model `Bramato\LaravelAi\Models\LlmModel` that provides an easy way to list and query the capabilities of the LLM models known to the package. This uses the [`calebporzio/sushi`](https://github.com/calebporzio/sushi) package to provide a database-like interface to an internal array of model data.
+
+The `LlmModel` has the following attributes:
+
+-   `provider` (string): The provider key (e.g., 'openai', 'google', 'anthropic', 'deepseek').
+-   `model_id` (string): The unique identifier for the model used in API calls.
+-   `description` (string): A brief description of the model.
+-   `context_window` (int): The maximum number of tokens the model can handle in its context window.
+-   `json_mode` (bool): Indicates if the model supports a dedicated JSON output mode (or if the package can reliably extract JSON via specific instructions, like with Claude).
+-   `supports_vision` (bool): Indicates if the model can process image input.
+-   `max_output_tokens` (int): The maximum number of tokens the model can generate in a single response.
+
+You can query this model like any other Eloquent model:
+
+```php
+use Bramato\LaravelAi\Models\LlmModel;
+
+// Get all available models
+$allModels = LlmModel::all();
+
+// Get all OpenAI models
+$openaiModels = LlmModel::where('provider', 'openai')->get();
+
+// Get models supporting vision
+$visionModels = LlmModel::where('supports_vision', true)->get();
+
+// Get models with a context window larger than 100k tokens
+$largeContextModels = LlmModel::where('context_window', '>', 100000)->get();
+
+// Find a specific model
+$gpt4o = LlmModel::where('model_id', 'gpt-4o')->first();
+
+if ($gpt4o) {
+    echo "GPT-4o Context Window: " . $gpt4o->context_window;
+    echo "Supports Vision? " . ($gpt4o->supports_vision ? 'Yes' : 'No');
+}
+```
+
+This can be useful for dynamically presenting model options to users or for making decisions within your application based on model capabilities. The model data is based on research at the time of release and may evolve.
+
 ## Testing
 
 Run the test suite using Pest:

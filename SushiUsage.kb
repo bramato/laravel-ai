@@ -1,0 +1,30 @@
+# Utilizzo di Sushi in laravel-ai
+
+Questo documento spiega brevemente come viene utilizzato il pacchetto `calebporzio/sushi` all'interno di `bramato/laravel-ai`.
+
+## Cos'è Sushi?
+
+Sushi ([https://github.com/calebporzio/sushi](https://github.com/calebporzio/sushi)) è un pacchetto Laravel che permette di utilizzare modelli Eloquent basati su semplici array PHP invece che su tabelle di database tradizionali.
+
+Funziona creando "al volo" un database SQLite (in memoria o su file) per il modello specifico, popolandolo con i dati forniti nell'array.
+
+Questo è utile per dati "statici" o "fixture" che non cambiano frequentemente e per cui non si vuole creare una tabella di database apposita (es. lista di stati, paesi, ruoli, o nel nostro caso, modelli LLM).
+
+## Come lo usiamo?
+
+In `laravel-ai` v1.1, useremo Sushi per creare il modello `src/Models/LlmModel.php`.
+
+1.  **Trait:** Il modello userà il trait `Sushi\Sushi`.
+2.  **Dati:** I dati dei modelli LLM supportati (ID, nome, provider, finestra di contesto, supporto JSON/Vision, ecc.) verranno definiti nella proprietà `protected $rows` all'interno della classe `LlmModel`.
+3.  **Schema:** Verrà definita la proprietà `protected $schema` per specificare i tipi di dato corretti per le colonne derivate dall'array `$rows` (es. `context_window` come intero).
+
+## Vantaggi
+
+-   **Accesso Eloquent:** Permette di interrogare la lista dei modelli LLM usando la sintassi Eloquent standard (es. `LlmModel::where('provider', 'openai')->get()`, `LlmModel::find('gpt-4-turbo')`).
+-   **Nessuna Migrazione:** Non richiede la creazione di una tabella specifica nel database dell'applicazione che usa il pacchetto.
+-   **Dati nel Codice:** Mantiene la lista dei modelli direttamente nel codice del pacchetto, facilitando la gestione e l'aggiornamento.
+
+## Requisiti
+
+-   Pacchetto `calebporzio/sushi` installato.
+-   Estensione PHP `pdo-sqlite` abilitata. 

@@ -18,6 +18,7 @@
     ],
     "require": {
         "php": "^8.2",
+        "calebporzio/sushi": "^2.5",
         "illuminate/contracts": "^10.0 || ^11.0",
         "wendelladriel/laravel-validated-dto": "^4.1"
     },

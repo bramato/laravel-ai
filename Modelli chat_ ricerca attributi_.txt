@@ -1,0 +1,464 @@
+﻿Confronto Tecnico dei Modelli di Chat LLM: OpenAI, Gemini, DeepSeek e Claude
+1. Introduzione
+Il Panorama in Evoluzione degli LLM
+Il campo dei Large Language Models (LLM) è caratterizzato da rapidi progressi e da un'intensa competizione tra i fornitori. Per sviluppatori, ricercatori e decisori tecnici, la selezione del modello ottimale richiede l'accesso a specifiche tecniche precise, aggiornate e comparabili. Fattori come la capacità di elaborazione del contesto, i limiti di generazione dell'output, il supporto multimodale e la gestione dei dati strutturati sono critici per un'integrazione di successo nelle applicazioni.
+Obiettivo e Ambito del Report
+Questo report mira a fornire un confronto dettagliato e strutturato degli ultimi modelli di chat e instruction-following disponibili tramite API (ove applicabile) da quattro fornitori leader: OpenAI, Google (Gemini), DeepSeek e Anthropic (Claude). L'obiettivo è presentare dati fattuali per gli attributi specificati: provider, model_id, description, context_window, supporto json_mode/output strutturato, supports_vision e max_output_tokens.
+Dati e Metodologia
+Le informazioni presentate sono sintetizzate dalla documentazione API pubblicamente disponibile, dai report tecnici e dai materiali correlati forniti come fonti di ricerca. Riflettono lo stato di questi modelli come documentato all'interno di tali fonti. Le capacità e le specifiche dei modelli, in particolare per i modelli in anteprima o in rapida iterazione, sono soggette a modifiche. Laddove specifici punti dati non erano disponibili nei materiali forniti, viene utilizzato "Non specificato" o null.
+Struttura del Report
+Il report è organizzato in sezioni dedicate a ciascun fornitore, con tabelle di confronto dettagliate. Queste sono seguite da una panoramica comparativa che sintetizza le tendenze chiave e le considerazioni tra i fornitori, concludendo con un riepilogo.
+2. Specifiche dei Modelli OpenAI
+Panoramica
+OpenAI offre un portafoglio diversificato di modelli accessibili tramite API, che vanno dalla serie di punta GPT-4 (ora inclusi le varianti GPT-4.1 e GPT-4o) a modelli di ragionamento specializzati (serie o) e opzioni convenienti come GPT-3.5 Turbo. Gli sviluppi recenti enfatizzano le capacità multimodali (input di testo, immagini), finestre di contesto significativamente espanse e meccanismi migliorati per la generazione di output strutturati, soddisfacendo una vasta gamma di requisiti di complessità, prestazioni e costi.1
+Tabella: Confronto dei Modelli Chat OpenAI
+Questa tabella funge da riferimento centrale per confrontare i principali modelli accessibili tramite chat di OpenAI. Aggrega le specifiche tecniche critiche richieste, consentendo una rapida valutazione dei limiti di contesto, del potenziale di output, del supporto alla visione e delle capacità di dati strutturati, vitali per selezionare il modello appropriato per un dato compito e budget.
+
+
+Provider
+	model_id (API Identifier/Alias)
+	description
+	context_window (tokens)
+	json_mode/structured_output (Support Level/Type)
+	supports_vision (Input/Output)
+	max_output_tokens (tokens)
+	OpenAI
+	gpt-4.1
+	Modello di punta per compiti complessi, coding, ragionamento long-context 1
+	1,047,576
+	Function Calling (Strict), Structured Outputs (Chat Completions) 1
+	Sì (Solo Input) 1
+	32,768
+	OpenAI
+	gpt-4.1-mini
+	Mid-size, prestazioni/costo bilanciati, supera GPT-4o in alcuni benchmark 2
+	1,047,576
+	Function Calling (Strict), Structured Outputs (Chat Completions) 2
+	Sì (Solo Input) 2
+	32,768
+	OpenAI
+	gpt-4.1-nano
+	Modello 4.1 più veloce ed economico, per compiti a bassa latenza 4
+	1,047,576
+	Function Calling (Strict), Structured Outputs (Chat Completions) 2
+	Sì (Solo Input) 2
+	32,768
+	OpenAI
+	gpt-4o
+	Modello di punta multimodale, versatile, alta intelligenza 2
+	128,000
+	Sì (JSON Object mode, Structured Outputs via json_schema¹, Function Calling) 2
+	Sì (Input/Output via tools) 1
+	16,384
+	OpenAI
+	gpt-4o-mini
+	Modello multimodale veloce, economico, capace, sostituisce GPT-3.5 Turbo 2
+	128,000
+	Sì (JSON Object mode, Structured Outputs via json_schema, Function Calling) 2
+	Sì (Input/Output via tools) 2
+	16,384
+	OpenAI
+	o4-mini
+	Modello di ragionamento (via Responses API), ragionamento migliorato, output strutturati 2
+	200,000 (Input)
+	Sì (Structured Outputs, Function Calling) 2
+	Sì (Solo Input) 2
+	100,000
+	OpenAI
+	o3-mini
+	Modello di ragionamento (via Responses API), ragionamento migliorato, output strutturati, solo testo 2
+	200,000 (Input)
+	Sì (Structured Outputs, Function Calling) 2
+	No 2
+	100,000
+	OpenAI
+	gpt-3.5-turbo
+	Modello legacy, ottimizzato per chat, conveniente 11
+	16,385
+	Sì (JSON Object mode, Function Calling) 11
+	No 15
+	4,096
+	* Note 1: Structured Outputs via json_schema richiede snapshot recenti come gpt-4o-2024-08-06 o gpt-4o-mini-2024-07-18 e successivi.11
+* Nota: Si raccomanda di "pinnare" versioni specifiche del modello (snapshot) per la produzione per garantire coerenza.1 Gli alias come gpt-4.1 puntano all'ultima versione disponibile.
+Analisi e Implicazioni
+L'analisi dei modelli OpenAI rivela diverse tendenze strategiche e considerazioni tecniche.
+* Segmentazione Strategica: OpenAI non persegue un unico modello "migliore", ma offre famiglie distinte ottimizzate per esigenze diverse: GPT-4o per interazioni multimodali bilanciate; GPT-4.1 per profondità di contesto estrema, coding e complessità; e la serie o (tramite l'API Responses) per compiti di ragionamento dedicati. Questa segmentazione è evidente nelle diverse capacità pubblicizzate (multimodalità vs. long context/coding vs. ragionamento) e nelle specifiche tecniche (limiti di contesto/output).1 La deprecazione mirata di GPT-4.5 a favore di GPT-4.1 sottolinea ulteriormente questa strategia di diversificazione.4 Ciò consente agli utenti di selezionare in base a requisiti specifici come lunghezza del contesto, dimensione dell'output, potenza di ragionamento, multimodalità o costo.
+* Maturità dell'Output Strutturato: L'evoluzione dalla modalità base json_object all'applicazione dello schema json_schema in response_format e al function calling rigoroso (strict: true) dimostra l'impegno di OpenAI nel migliorare l'affidabilità della generazione di dati strutturati.1 Questo è un fattore critico per l'integrazione degli LLM in flussi di lavoro e applicazioni automatizzate. I primi modelli offrivano una modalità JSON di base, che spesso portava a problemi di formattazione.19 La richiesta degli utenti di maggiore affidabilità ha probabilmente guidato lo sviluppo di meccanismi più rigorosi. L'introduzione di json_schema per i modelli più recenti 11 e strict: true per il function calling 12 risponde direttamente a questa esigenza di struttura garantita. I diversi livelli di supporto tra i modelli richiedono un controllo attento in base ai requisiti.
+* Focus sull'Input del Contesto Ampio: Modelli come GPT-4.1 vantano finestre di contesto enormi (1M+ token) ma hanno limiti di output significativamente più piccoli (32k token).1 Questa differenza suggerisce fortemente che questi modelli sono ottimizzati principalmente per comprendere e ragionare su grandi quantità di dati di input, piuttosto che generare output altrettanto vasti in un unico turno. Le discussioni degli utenti confermano confusione e limitazioni riguardo ai token di output.21 Le applicazioni che richiedono l'analisi di grandi documenti o codebase ne traggono il massimo beneficio, mentre i compiti che necessitano di una generazione continua molto lunga affrontano ancora vincoli. Il valore primario della massiccia finestra di contesto risiede quindi nella capacità di elaborazione dell'input.
+Note a piè di pagina:
+* API Endpoints: Chat Completions (v1/chat/completions), Responses (v1/responses).
+* Versioning: Utilizzare snapshot specifici (es. gpt-4.1-2025-04-14) per la produzione.1
+* Structured Output vs. JSON Mode: json_object garantisce JSON valido ma non la conformità allo schema; json_schema (in response_format o function calling con strict: true) applica uno schema specifico.11
+* Vision: L'input di immagini è supportato da GPT-4.1 (solo input) e GPT-4o (input/output via tools).1
+* o-series: Modelli focalizzati sul ragionamento, accessibili tramite l'API Responses, possono utilizzare "reasoning tokens" non visibili ma fatturati.2
+3. Specifiche dei Modelli Google Gemini
+Panoramica
+La suite Gemini di Google rappresenta una forte spinta verso l'IA nativamente multimodale, caratterizzata da una rapida iterazione tra versioni (1.0, 1.5, 2.0, 2.5) e livelli (Pro, Flash, Lite, Flash-8B). Le caratteristiche chiave includono la capacità di elaborare input diversi (testo, immagine, audio, video, PDF), finestre di contesto eccezionalmente grandi (fino a 2 milioni di token) e capacità in evoluzione nella generazione di output strutturati e nell'uso di strumenti.23
+Tabella: Confronto dei Modelli Chat Google Gemini
+Questa tabella fornisce una necessaria panoramica strutturata della complessa e in rapida evoluzione famiglia di modelli Gemini di Google. Consente agli utenti di confrontare i modelli in base alla loro versione, livello, capacità multimodali, limiti di contesto/output e funzionalità cruciali come il supporto allo schema JSON, aiutando la selezione per applicazioni diverse, spesso multimodali.
+
+
+Provider
+	model_id (API Identifier/Alias)
+	description
+	context_window (tokens)
+	json_mode/schema_support
+	supports_vision (& other modalities)
+	max_output_tokens (tokens)
+	Google
+	gemini-2.5-pro-preview
+	Ragionamento più avanzato, comprensione multimodale, coding 23
+	1,048,576
+	Sì (Structured Outputs) 23
+	Sì (Audio, Immagine, Video, Testo In; Testo Out) 23
+	65,536
+	Google
+	gemini-2.5-flash-preview
+	Pensiero adattivo, efficienza dei costi, multimodale 23
+	1,048,576
+	Sì (Structured Outputs) 23
+	Sì (Audio, Immagine, Video, Testo In; Testo Out) 23
+	65,536
+	Google
+	gemini-2.0-flash
+	Workhorse, velocità, generazione multimodale 23
+	1,048,576
+	Sì (Structured Outputs) 25
+	Sì (Audio, Immagine, Video, Testo In; Testo, Immagine(exp), Audio(soon) Out) 23
+	8,192
+	Google
+	gemini-2.0-flash-lite
+	Efficienza dei costi, bassa latenza 23
+	1,048,576
+	Sì (Structured Outputs) 25
+	Sì (Audio, Immagine, Video, Testo In; Testo Out) 23
+	8,192
+	Google
+	gemini-1.5-pro
+	Ragionamento complesso, long context (fino a 2M) 23
+	1,048,576 (standard), 2,097,152
+	Sì (JSON mode, JSON schema) 23
+	Sì (Audio, Immagine, Video, Testo In; Testo/Codice/JSON Out) 23
+	8,192
+	Google
+	gemini-1.5-flash
+	Veloce, versatile, multimodale, 1M context 23
+	1,048,576
+	Sì (JSON mode, JSON schema) 23
+	Sì (Audio, Immagine, Video, Testo In; Testo/Codice/JSON Out) 23
+	8,192
+	Google
+	gemini-1.0-pro
+	Modello legacy per chat e generazione testo/codice 26
+	~32,760 (Input)
+	No (Non ufficiale, inaffidabile) 36
+	No (Solo Testo/Codice) 26
+	8,192
+	Google
+	gemini-1.0-pro-vision
+	Modello legacy input multimodale per comprensione visiva, output testo/codice 26
+	12,288 (Input)
+	No 41
+	Sì (Immagine, Frame Video, Testo In; Testo/Codice Out) 26
+	4,096
+	* Nota: Gli alias come gemini-1.5-pro puntano all'ultima versione stabile (es. gemini-1.5-pro-002). Le versioni preview (es. -preview-MMDD) sono per test.23
+Analisi e Implicazioni
+L'evoluzione della famiglia Gemini rivela una strategia chiara e alcune lezioni apprese.
+* Leadership in Multimodalità e Contesto: La strategia di Google punta fortemente sulla multimodalità nativa (gestione diretta di input diversi come video e audio) e sull'espansione dei limiti della finestra di contesto (1M standard, 2M in anteprima).23 I modelli Gemini elencano costantemente testo, immagine, audio e video come input a partire dalla versione 1.5. La finestra di contesto da 1M token è diventata standard con 1.5 Pro 32, seguita rapidamente da un'opzione da 2M.33 Questo posiziona Gemini in modo competitivo per compiti complessi che coinvolgono grandi set di dati misti.
+* Iterazione Rapida e Complessità dei Livelli: La famiglia Gemini mostra cicli di iterazione estremamente rapidi (1.0 -> 1.5 -> 2.0 -> 2.5 anteprime in circa un anno) e offre numerosi livelli (Pro, Flash, Lite, 8B) all'interno delle generazioni.23 L'elevato numero di ID modello Gemini elencati e i brevi intervalli tra gli annunci delle versioni principali evidenziano questo ritmo veloce. I diversi suffissi (-Pro, -Flash, -Lite) indicano chiaramente livelli di prestazioni/costo.23 Sebbene offra scelta, questa rapida evoluzione e complessità può rendere difficile per gli utenti tenere traccia delle ultime versioni stabili e selezionare il modello ottimale, rendendo necessario fare affidamento su documentazione aggiornata e utilizzare con cautela alias come -latest.
+* Apprendimento dalle Limitazioni Passate (JSON): L'inclusione esplicita del supporto alla modalità JSON e allo schema JSON nei modelli Gemini 1.5 e successivi 23, in contrasto con le difficoltà documentate e la mancanza di supporto ufficiale in Gemini 1.0 Pro 36, dimostra che Google ha affrontato un punto critico per gli sviluppatori. La chiara differenza tra le generazioni indica una risposta diretta alla limitazione precedente, riconoscendo la necessità di un output strutturato affidabile per l'usabilità dell'API.
+Note a piè di pagina:
+* Versioning: Utilizzare versioni stabili (es. gemini-1.5-pro-002) per la produzione. Le versioni preview (es. -preview-MMDD) sono per test.23
+* Modalità: Supporto input multimodale ampio (Testo, Immagine, Audio, Video, PDF) per 1.5+.23 Output multimodale emergente (Immagine/Audio) in 2.0 Flash.23
+* JSON: Supporto per response_mime_type: "application/json" e schema JSON in 1.5+.23
+* Altre Funzionalità: Context Caching 23, Code Execution 23 disponibili in alcuni modelli.
+4. Specifiche dei Modelli DeepSeek
+Panoramica
+DeepSeek si è distinta grazie ai suoi modelli open-source ad alte prestazioni, in particolare nel coding e nel ragionamento (serie DeepSeek Coder, DeepSeek-R1). Offrono anche un'API compatibile con OpenAI che fornisce accesso a modelli come deepseek-chat (basato su DeepSeek-V3) e deepseek-reasoner (basato su DeepSeek-R1). Le caratteristiche chiave includono architetture Mixture-of-Experts (MoE) per l'efficienza, prezzi competitivi e modelli specializzati per la visione (DeepSeek-VL).47
+Tabella: Confronto dei Modelli Chat API DeepSeek
+Questa tabella si concentra specificamente sui modelli accessibili tramite l'API chat principale di DeepSeek, fornendo le specifiche più rilevanti per gli utenti che desiderano integrare DeepSeek tramite questa interfaccia comune. Chiarisce in modo cruciale la differenza tra i limiti dell'API (ad esempio, la finestra di contesto) e i limiti potenzialmente maggiori dei modelli open-source sottostanti.
+
+
+Provider
+	model_id (API name)
+	description (incl. base model mapping)
+	context_window (tokens, API limit)
+	json_mode/structured_output
+	supports_vision
+	max_output_tokens (tokens, API limit)
+	DeepSeek
+	deepseek-chat
+	Modello di chat generale, punta a DeepSeek-V3 48
+	64,000
+	Non Specificato/No (API)¹
+	No (API)²
+	8,192 (default 4k) 51
+	DeepSeek
+	deepseek-reasoner
+	Modello focalizzato sul ragionamento, punta a DeepSeek-R1 48
+	64,000
+	Non Specificato/No (API)¹
+	No (API)²
+	8,192 (default 4k, + 32k CoT³) 51
+	* Nota 1: La documentazione API per deepseek-chat e deepseek-reasoner non menziona esplicitamente un parametro response_format o json_mode.48 DeepSeek-Coder-V2-Instruct (accessibile separatamente o tramite alcune piattaforme 70) supporta l'output JSON.67
+* Nota 2: Il supporto per la visione richiede l'uso di modelli DeepSeek-VL separati.62
+* Nota 3: CoT (Chain of Thought) sono token di ragionamento intermedi generati da deepseek-reasoner prima della risposta finale, inclusi nel conteggio e nel costo dei token di output.51
+* Nota: La finestra di contesto dell'API (64k) è inferiore a quella dei modelli base open-source V3/R1 (128k).47
+Analisi e Implicazioni
+L'offerta di DeepSeek presenta peculiarità importanti per gli sviluppatori API.
+* Discrepanza tra Capacità API e Open-Source: Un aspetto significativo è la discrepanza tra le specifiche pubblicizzate per i modelli API di DeepSeek (contesto 64k) e i loro modelli base open-source sottostanti come V3 e R1 (contesto 128k).47 La differenza diretta tra 64k e 128k indica che l'API offre una versione potenzialmente limitata o ottimizzata in modo diverso, forse per motivi di stabilità, latenza o gestione dei costi. Gli utenti che necessitano della piena capacità di contesto devono considerare l'hosting autonomo delle versioni open-source.
+* Focus su Ragionamento e Coding: DeepSeek promuove fortemente le capacità di ragionamento di R1 (deepseek-reasoner) e l'abilità di codifica della sua serie Coder.47 I nomi dei modelli (-reasoner, -coder), i risultati dei benchmark che enfatizzano matematica/codice 47 e il concetto di token CoT specifici per il modello reasoner 51 evidenziano questa specializzazione. Questa focalizzazione suggerisce mercati target nella risoluzione di problemi complessi e nello sviluppo software. La fusione di Chat e Coder in V2.5 67 indica un movimento verso il consolidamento di questi punti di forza.
+* Mancanza di Visione/JSON Nativi nell'API Core: I principali modelli API chat di DeepSeek (deepseek-chat, deepseek-reasoner) mancano di supporto integrato per la visione (richiedendo modelli VL separati) e di un supporto esplicito alla modalità JSON garantito dall'API principale.48 La scansione della documentazione API non rivela parametri di visione/JSON per questi modelli specifici. Confrontando con i concorrenti che offrono visione/JSON integrati nei loro modelli di chat principali, si conclude che l'API core è attualmente focalizzata sul testo e manca di garanzie integrate per l'output strutturato, limitando potenzialmente la loro utilità immediata per compiti multimodali o applicazioni che richiedono una struttura JSON garantita tramite l'API primaria.
+Note a piè di pagina:
+* Nomi Modello: Chiarire la mappatura tra nomi API (es. deepseek-chat) e modelli base (es. DeepSeek-V3).
+* CoT Tokens: Spiegare che per deepseek-reasoner, i token di output includono sia il ragionamento intermedio (CoT) che la risposta finale.51
+* Context Caching: Menzionare la disponibilità e l'impatto sui costi del caching del contesto.54
+* Compatibilità API: Notare la compatibilità con il formato API di OpenAI.52
+5. Specifiche dei Modelli Anthropic Claude
+Panoramica
+La famiglia Claude di Anthropic (Claude 3, 3.5, 3.7) si distingue per l'enfasi sulla sicurezza, l'affidabilità e le solide prestazioni, in particolare nel ragionamento e nei compiti a lungo contesto. Caratteristiche distintive includono una finestra di contesto consistente di 200k token attraverso i modelli recenti e la disponibilità su molteplici piattaforme (API Anthropic, AWS Bedrock, Vertex AI).87
+Tabella: Confronto dei Modelli Anthropic Claude
+Questa tabella fornisce un chiaro confronto dei livelli dei modelli Anthropic (Opus, Sonnet, Haiku) attraverso le generazioni recenti (3, 3.5, 3.7), consentendo agli utenti di valutare i compromessi tra intelligenza, velocità, costo e funzionalità come il pensiero esteso o i token massimi di output.
+
+
+Provider
+	model_id (Anthropic API name)
+	description
+	context_window (tokens)
+	json_mode/structured_output
+	supports_vision
+	max_output_tokens (tokens)
+	Anthropic
+	claude-3-7-sonnet-20250219
+	Modello più intelligente, capacità di pensiero esteso 87
+	200,000
+	Via Tool Use¹
+	Sì
+	64,000
+	Anthropic
+	claude-3-5-sonnet-20241022
+	Precedente modello di punta, bilanciato 87
+	200,000
+	Via Tool Use¹
+	Sì
+	8,192²
+	Anthropic
+	claude-3-5-haiku-20241022
+	Modello più veloce ed economico 87
+	200,000
+	Via Tool Use¹
+	Sì
+	8,192
+	Anthropic
+	claude-3-opus-20240229
+	Potente, per compiti complessi 87
+	200,000
+	Via Tool Use¹
+	Sì
+	4,096
+	Anthropic
+	claude-3-sonnet-20240229
+	Bilanciato v3 87
+	200,000
+	Via Tool Use¹
+	Sì
+	4,096
+	Anthropic
+	claude-3-haiku-20240307
+	Veloce v3 87
+	200,000
+	Via Tool Use¹
+	Sì
+	4,096
+	* Nota 1: Claude non ha un parametro json_mode esplicito. L'output JSON strutturato e affidabile si ottiene principalmente tramite il meccanismo tool_use, definendo uno schema JSON per l'input/output dello strumento.87
+* Nota 2: Il limite di 8192 token per Claude 3.5 Sonnet potrebbe richiedere un header specifico (es. anthropic-beta: max-tokens-3-5-sonnet-2024-07-15) durante il periodo beta iniziale; altrimenti il limite predefinito era 4096.99
+* Nota: I nomi dei modelli API possono variare leggermente tra Anthropic, AWS Bedrock e Vertex AI.87
+Analisi e Implicazioni
+I modelli Claude presentano un approccio distintivo nel mercato degli LLM.
+* Contesto Ampio Coerente e Prestazioni a Livelli: Anthropic dà priorità a una finestra di contesto ampia e coerente (200k) attraverso la sua moderna famiglia di modelli, differenziandoli fortemente per intelligenza, velocità, costo e token massimi di output nei livelli Opus, Sonnet e Haiku.87 L'osservazione della finestra di contesto costante di 200k in tutti i modelli Claude 3.x elencati, contrapposta alle specifiche variabili per velocità, costo e token di output massimi associati ai livelli Opus, Sonnet e Haiku, suggerisce che Anthropic utilizza la dimensione del contesto come linea di base e classifica i modelli in base ad altri vettori di prestazioni. Ciò offre agli utenti una gestione prevedibile del contesto ma chiari compromessi per le esigenze prestazionali.
+* Output Strutturato tramite Uso di Strumenti: A differenza della response_format di OpenAI o della json_mode di Gemini, Claude ottiene principalmente un output strutturato (JSON) affidabile attraverso il suo meccanismo tool_use.87 La ricerca di parametri json_mode o response_format nella documentazione non ne rivela di espliciti per l'output JSON generale.114 L'enfasi è invece sull'uso di tool_use per dati strutturati, dove la definizione dell'input_schema di uno strumento costringe il modello a generare JSON corrispondente a tale schema. Questo approccio accoppia strettamente la generazione di dati strutturati con il function calling/flussi di lavoro agentici, offrendo potenzialmente più controllo ma richiedendo un pattern di implementazione diverso rispetto a un semplice flag di modalità.
+* Aumento dei Limiti di Output: Mentre la generazione Claude 3 aveva un limite di output di 4k token, Claude 3.5 lo ha aumentato a 8k (potenzialmente richiedendo un header beta inizialmente), e Claude 3.7 Sonnet lo spinge significativamente oltre a 64k.87 Il confronto dei max_output_tokens tra le generazioni dei modelli (4k per Claude 3, 8k per Claude 3.5, 64k per Claude 3.7 Sonnet) mostra una chiara tendenza all'aumento. Le discussioni degli utenti evidenziano problemi con i limiti precedenti.101 Questa tendenza rispecchia il movimento del settore verso l'abilitazione di generazioni a singolo turno più lunghe e complete, come visto anche con i concorrenti (es. OpenAI GPT-4.1).
+Note a piè di pagina:
+* Piattaforme: Specificare i nomi API per diverse piattaforme (Anthropic, Bedrock, Vertex AI).87
+* Output JSON: Spiegare che si ottiene tramite tool_use.114
+* Vision: Capacità di elaborare input visivi.87
+* Pensiero Esteso: Notare la funzionalità "extended thinking" di 3.7 Sonnet.87
+6. Panoramica Comparativa e Considerazioni Chiave
+Sintesi
+L'analisi dei modelli offerti da OpenAI, Google, DeepSeek e Anthropic rivela tendenze comuni e differenziazioni strategiche nel mercato degli LLM accessibili tramite API.
+* Espansione della Finestra di Contesto: Tutti i principali fornitori stanno spingendo significativamente le finestre di contesto. 1M+ token stanno diventando sempre più comuni (OpenAI GPT-4.1, Gemini 1.5/2.x), mentre 200k è lo standard per l'ultima famiglia di Anthropic. L'API di DeepSeek è leggermente indietro a 64k, sebbene i suoi modelli sottostanti raggiungano 128k.
+* Multimodalità come Standard: Le capacità di visione sono ormai attese nei modelli di punta (GPT-4o, GPT-4.1, Gemini 1.5+, Claude 3+). Google sta spingendo oltre con input audio/video e output nascente di immagini/audio. DeepSeek richiede modelli VL separati per la visione.
+* Maturazione dell'Output Strutturato: La generazione affidabile di JSON è un focus chiave, evolvendo da modalità di base all'applicazione di schemi (OpenAI Structured Outputs, Gemini 1.5+ JSON Schema) o all'uso integrato di strumenti (Anthropic). L'API principale di DeepSeek sembra mancare di questa funzionalità nativa.
+* Livellamento e Specializzazione: I fornitori offrono modelli multipli classificati per capacità, velocità e costo (es. 4o/4.1/nano/mini di OpenAI, Pro/Flash/Lite di Google, Opus/Sonnet/Haiku di Anthropic, Chat/Reasoner/Coder di DeepSeek), consentendo agli utenti di scegliere in base a esigenze specifiche.
+Differenziatori Chiave (Tabella Riassuntiva)
+Questa tabella offre una sintesi di alto livello per un rapido confronto, complementando le tabelle dettagliate per fornitore.
+
+
+Caratteristica Chiave
+	OpenAI
+	Google Gemini
+	DeepSeek (API)
+	Anthropic Claude
+	Range Tipico Finestra Contesto
+	16k - 1M+ tokens 1
+	32k - 2M tokens 23
+	64k tokens 51
+	200k tokens 87
+	Range Tipico Max Output Tokens
+	4k - 100k tokens 1
+	4k - 65k tokens 23
+	8k tokens (+32k CoT for reasoner) 51
+	4k - 64k tokens 87
+	Approccio Supporto Visione
+	Integrato (Input/Output via tools per 4o; Input per 4.1/o) 1
+	Nativo e Integrato (Input Audio/Video/Immagine; Output Immagine/Audio emergente) 23
+	Modelli VL Separati 62
+	Integrato (Input Immagine) 87
+	Approccio Output Strutturato
+	json_object mode, json_schema (response_format), Function Calling (Strict) 1
+	json_mode, JSON Schema 23 (da 1.5+)
+	Non Specificato/No (API Core)¹
+	Via Tool Use (definizione schema strumento) 87
+	Strategia Livellamento Modelli
+	Tiering per caso d'uso/prestazioni (4o, 4.1, o-series, mini, nano) 1
+	Tiering per prestazioni/costo (Pro, Flash, Lite, 8B) e versione 23
+	Modelli API distinti (Chat vs Reasoner) mappati a modelli base specializzati 48
+	Tiering per intelligenza/velocità/costo (Opus, Sonnet, Haiku) 87
+	* Nota 1: Vedere Nota 1 nella tabella DeepSeek API.
+Implicazioni Approfondite
+* Il Compromesso "Contesto vs. Output": Il divario costante tra finestre di contesto massicce e token di output massimi più piccoli tra i fornitori 1 suggerisce una sfida fondamentale nel mantenere coerenza e qualità per generazioni molto lunghe. Gli utenti che necessitano di output estesi potrebbero richiedere strategie multi-turno o tecniche di prompting specifiche, anche con modelli a contesto ampio. Ciò implica che avere semplicemente una grande finestra di contesto non risolve automaticamente tutti i problemi di generazione long-form; l'ingestione del contesto e la generazione long-form sono capacità distinte con proprietà di scaling attualmente diverse.
+* Divergenza Architettonica Implicita: I diversi approcci a funzionalità come l'output strutturato (modalità vs. schema vs. uso di strumenti) e i vari rapporti tra limiti di contesto e output potrebbero suggerire differenze architetturali sottostanti o metodologie di addestramento tra i fornitori, anche se il concetto di base del trasformatore è condiviso. Ad esempio, l'architettura MoE di DeepSeek è esplicitamente menzionata come fattore abilitante per l'efficienza 47, mentre l'enfasi di Anthropic sull'uso degli strumenti per JSON potrebbe riflettere il loro approccio di addestramento Constitutional AI 90 che favorisce interazioni controllate. Queste differenze a livello superficiale probabilmente riflettono filosofie di progettazione più profonde.
+* Livello di Astrazione API: L'esempio di DeepSeek (contesto API 64k vs contesto modello 128k) evidenzia che le specifiche API potrebbero non riflettere sempre la piena capacità del modello sottostante.47 Le pratiche comuni nella progettazione di API (limitazione della velocità, gestione delle risorse, astrazione della versione) 1 suggeriscono che i livelli API spesso aggiungono vincoli. Gli sviluppatori che si affidano esclusivamente alle specifiche API dovrebbero essere consapevoli che potrebbero utilizzare una versione vincolata del modello base.
+Considerazioni per la Selezione
+L'utilizzo delle tabelle fornite può guidare la selezione del modello:
+* Prioritizzare: Identificare le esigenze critiche (es. dimensione del contesto per l'analisi di documenti, visione per compiti con immagini, affidabilità JSON per l'automazione, lunghezza dell'output per compiti di generazione, costo per vincoli di budget).
+* Testare: Le prestazioni nei benchmark non si traducono sempre direttamente in casi d'uso specifici. È fondamentale testare i modelli candidati sui propri compiti specifici.
+* Versioning: Considerare l'importanza del versioning del modello per la riproducibilità in produzione, pinnando versioni specifiche ove possibile.1
+7. Conclusione
+Riepilogo
+Questo report ha fornito un confronto consolidato e tecnicamente dettagliato degli ultimi modelli di chat dei quattro principali fornitori di LLM: OpenAI, Google Gemini, DeepSeek e Anthropic Claude. Sono state presentate specifiche chiave come la finestra di contesto, i limiti massimi di output, il supporto alla visione e le capacità di output strutturato, insieme a un'analisi delle strategie dei fornitori e delle implicazioni tecniche.
+Prospettive Future
+Il campo degli LLM continua a evolversi a un ritmo senza precedenti. Le specifiche, le capacità e i prezzi sono soggetti a frequenti cambiamenti. È probabile che le tendenze verso finestre di contesto più ampie, multimodalità più ricca e generazione di output strutturato più affidabile continuino. Si raccomanda un monitoraggio continuo della documentazione ufficiale dei fornitori per rimanere aggiornati sugli ultimi sviluppi.
+Considerazione Finale
+La disponibilità di dati comparativi come quelli presentati in questo report è essenziale per prendere decisioni informate nello sviluppo di applicazioni basate sull'IA. La comprensione dei punti di forza, dei limiti e dei compromessi dei diversi modelli consente a sviluppatori e ricercatori di selezionare lo strumento più appropriato per le loro esigenze specifiche, guidando l'innovazione e l'adozione efficace degli LLM.
+Bibliografia
+1. Model - OpenAI API, accesso eseguito il giorno aprile 30, 2025, https://platform.openai.com/docs/models/gpt-4.1
+2. Azure OpenAI Service models - Learn Microsoft, accesso eseguito il giorno aprile 30, 2025, https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models
+3. Model - OpenAI API, accesso eseguito il giorno aprile 30, 2025, https://platform.openai.com/docs/models/gpt-4o
+4. Introducing GPT-4.1 in the API - OpenAI, accesso eseguito il giorno aprile 30, 2025, https://openai.com/index/gpt-4-1/
+5. Text generation and prompting - OpenAI API, accesso eseguito il giorno aprile 30, 2025, https://platform.openai.com/docs/guides/text-generation
+6. All About OpenAI's Latest GPT 4.1 Family - Analytics Vidhya, accesso eseguito il giorno aprile 30, 2025, https://www.analyticsvidhya.com/blog/2025/04/open-ai-gpt-4-1/
+7. How can I access GPT-4, GPT-4o, and GPT-4o mini? - OpenAI Help Center, accesso eseguito il giorno aprile 30, 2025, https://help.openai.com/en/articles/7102672-how-can-i-access-gpt-4-gpt-4o-and-gpt-4o-mini
+8. model reference docs - OpenAI Platform, accesso eseguito il giorno aprile 30, 2025, https://platform.openai.com/docs/models
+9. GPT-4.1 nano - OpenAI Platform, accesso eseguito il giorno aprile 30, 2025, https://platform.openai.com/docs/models/gpt-4.1-nano
+10. OpenAI: GPT-4.1 Nano – Run with an API - OpenRouter, accesso eseguito il giorno aprile 30, 2025, https://openrouter.ai/openai/gpt-4.1-nano/api
+11. Structured Outputs - OpenAI API, accesso eseguito il giorno aprile 30, 2025, https://platform.openai.com/docs/guides/structured-outputs
+12. Introducing Structured Outputs in the API - OpenAI, accesso eseguito il giorno aprile 30, 2025, https://openai.com/index/introducing-structured-outputs-in-the-api/
+13. GPT-4-Vision supporting JSON? - Bugs - OpenAI Developer Community, accesso eseguito il giorno aprile 30, 2025, https://community.openai.com/t/gpt-4-vision-supporting-json/712705
+14. Reasoning models - OpenAI API, accesso eseguito il giorno aprile 30, 2025, https://platform.openai.com/docs/guides/reasoning
+15. OpenAI gpt-3.5-turbo API Pricing Calculator - TypingMind Custom, accesso eseguito il giorno aprile 30, 2025, https://custom.typingmind.com/tools/estimate-llm-usage-costs/gpt-3.5-turbo
+16. What is the context window of the the new GPT 3.5 Turbo model (gpt-3.5-turbo-0125)? - API, accesso eseguito il giorno aprile 30, 2025, https://community.openai.com/t/what-is-the-context-window-of-the-the-new-gpt-3-5-turbo-model-gpt-3-5-turbo-0125/609532
+17. Please tell me the maximum number of tokens for GPT-3.5-turbo-1106 - API, accesso eseguito il giorno aprile 30, 2025, https://community.openai.com/t/please-tell-me-the-maximum-number-of-tokens-for-gpt-3-5-turbo-1106/582766
+18. API Reference - OpenAI Platform, accesso eseguito il giorno aprile 30, 2025, https://platform.openai.com/docs/api-reference
+19. JSON Mode with GPT-4 turbo stops after 1050 token - Bugs - OpenAI Developer Community, accesso eseguito il giorno aprile 30, 2025, https://community.openai.com/t/json-mode-with-gpt-4-turbo-stops-after-1050-token/537116
+20. Clarity on gpt-4.1 and o4-mini structured output support - API - OpenAI Developer Forum, accesso eseguito il giorno aprile 30, 2025, https://community.openai.com/t/clarity-on-gpt-4-1-and-o4-mini-structured-output-support/1230973
+21. What is the maximum response length (output tokens) for each GPT model? - API, accesso eseguito il giorno aprile 30, 2025, https://community.openai.com/t/what-is-the-maximum-response-length-output-tokens-for-each-gpt-model/524066
+22. GPT-4o context window confusion - API - OpenAI Developer Forum, accesso eseguito il giorno aprile 30, 2025, https://community.openai.com/t/gpt-4o-context-window-confusion/761439
+23. Gemini models | Gemini API | Google AI for Developers, accesso eseguito il giorno aprile 30, 2025, https://ai.google.dev/gemini-api/docs/models
+24. Google models | Generative AI, accesso eseguito il giorno aprile 30, 2025, https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models
+25. Gemini models | Gemini API | Google AI for Developers, accesso eseguito il giorno aprile 30, 2025, https://ai.google.dev/gemini-api/docs/models/gemini
+26. Learn about supported models | Vertex AI in Firebase - Google, accesso eseguito il giorno aprile 30, 2025, https://firebase.google.com/docs/vertex-ai/models
+27. Google models | Generative AI on Vertex AI, accesso eseguito il giorno aprile 30, 2025, https://cloud.google.com/vertex-ai/generative-ai/docs/models
+28. Gemini - Google DeepMind, accesso eseguito il giorno aprile 30, 2025, https://deepmind.google/technologies/gemini/
+29. Learn about supported models | Vertex AI in Firebase - Google, accesso eseguito il giorno aprile 30, 2025, https://firebase.google.com/docs/vertex-ai/gemini-models
+30. google-gemini/cookbook: Examples and guides for using the Gemini API - GitHub, accesso eseguito il giorno aprile 30, 2025, https://github.com/google-gemini/cookbook
+31. Our latest AI models - Google AI, accesso eseguito il giorno aprile 30, 2025, https://ai.google/get-started/our-models/
+32. Our next-generation model: Gemini 1.5 - Google Blog, accesso eseguito il giorno aprile 30, 2025, https://blog.google/technology/ai/google-gemini-next-generation-model-february-2024/
+33. Long context | Generative AI on Vertex AI - Google Cloud, accesso eseguito il giorno aprile 30, 2025, https://cloud.google.com/vertex-ai/generative-ai/docs/long-context
+34. Gemini Pro - Google DeepMind, accesso eseguito il giorno aprile 30, 2025, https://deepmind.google/technologies/gemini/pro/
+35. Gemini 1.5 Pro | Generative AI on Vertex AI - Google Cloud, accesso eseguito il giorno aprile 30, 2025, https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/1-5-pro
+36. Google Gemini Pro: 8 Key Features, Models & Quick API Tutorial - Acorn Labs, accesso eseguito il giorno aprile 30, 2025, https://www.acorn.io/resources/learning-center/google-gemini-pro/
+37. Gemini 1.5 Pro 2M context window, code execution capabilities, and Gemma 2 are available today - Google Developers Blog, accesso eseguito il giorno aprile 30, 2025, https://developers.googleblog.com/en/new-features-for-the-gemini-api-and-google-ai-studio/
+38. Vertex AI release notes | Generative AI on Vertex AI - Google Cloud, accesso eseguito il giorno aprile 30, 2025, https://cloud.google.com/vertex-ai/generative-ai/docs/release-notes
+39. Vertex AI I/O announcements: Gemini and Gemma models | Google Cloud Blog, accesso eseguito il giorno aprile 30, 2025, https://cloud.google.com/blog/products/ai-machine-learning/vertex-ai-io-announcements
+40. Gemini 1.5 Flash | Generative AI on Vertex AI - Google Cloud, accesso eseguito il giorno aprile 30, 2025, https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/1-5-flash
+41. How can i Get a JSON structure response from the google gemini-pro-vision, accesso eseguito il giorno aprile 30, 2025, https://stackoverflow.com/questions/78495286/how-can-i-get-a-json-structure-response-from-the-google-gemini-pro-vision
+42. Gemini 1.0 Pro Vision – Vertex AI - Google Cloud Console, accesso eseguito il giorno aprile 30, 2025, https://console.cloud.google.com/vertex-ai/publishers/google/model-garden/gemini-pro-vision
+43. support for JSON output mode in ChatGoogleGenerativeAI · Issue #26135 - GitHub, accesso eseguito il giorno aprile 30, 2025, https://github.com/langchain-ai/langchain/issues/26135
+44. JSON Mode · Issue #137 · google-gemini/deprecated-generative-ai-python - GitHub, accesso eseguito il giorno aprile 30, 2025, https://github.com/google-gemini/generative-ai-python/issues/137
+45. Can't remove backticks from Gemini Pro API responses : r/Bard - Reddit, accesso eseguito il giorno aprile 30, 2025, https://www.reddit.com/r/Bard/comments/18mmszg/cant_remove_backticks_from_gemini_pro_api/
+46. Why do most models have "only" 100K tokens context window, while Gemini is at 2M tokens? : r/LocalLLaMA - Reddit, accesso eseguito il giorno aprile 30, 2025, https://www.reddit.com/r/LocalLLaMA/comments/1fp4s7e/why_do_most_models_have_only_100k_tokens_context/
+47. deepseek-ai/DeepSeek-R1 - Hugging Face, accesso eseguito il giorno aprile 30, 2025, https://huggingface.co/deepseek-ai/DeepSeek-R1
+48. Lists Models - DeepSeek API Docs, accesso eseguito il giorno aprile 30, 2025, https://api-docs.deepseek.com/api/list-models
+49. deepseek-ai (DeepSeek) - Hugging Face, accesso eseguito il giorno aprile 30, 2025, https://huggingface.co/deepseek-ai
+50. deepseek-ai/DeepSeek-V3 - GitHub, accesso eseguito il giorno aprile 30, 2025, https://github.com/deepseek-ai/DeepSeek-V3
+51. Deepseek Models - PiAPI, accesso eseguito il giorno aprile 30, 2025, https://piapi.ai/docs/llm-api/deepseek
+52. DeepSeek API Docs: Your First API Call, accesso eseguito il giorno aprile 30, 2025, https://api-docs.deepseek.com/
+53. DeepSeek-R1 Release, accesso eseguito il giorno aprile 30, 2025, https://api-docs.deepseek.com/news/news250120
+54. Deepseek API Complete Guide: Mastering the DeepSeek API for Developers | Zuplo Blog, accesso eseguito il giorno aprile 30, 2025, https://zuplo.com/blog/2025/03/07/deepseek-api
+55. Models & Pricing - DeepSeek API Docs, accesso eseguito il giorno aprile 30, 2025, https://api-docs.deepseek.com/quick_start/pricing
+56. deepseek-ai/DeepSeek-Coder-V2-Instruct - Hugging Face, accesso eseguito il giorno aprile 30, 2025, https://huggingface.co/deepseek-ai/DeepSeek-Coder-V2-Instruct
+57. DeepSeek-Coder-V2: Breaking the Barrier of Closed-Source Models in Code Intelligence - GitHub, accesso eseguito il giorno aprile 30, 2025, https://github.com/deepseek-ai/DeepSeek-Coder-V2
+58. DeepSeek-Coder-V2: Breaking the Barrier of Closed-Source Models in Code Intelligence, accesso eseguito il giorno aprile 30, 2025, https://www.reddit.com/r/LocalLLaMA/comments/1dhx449/deepseekcoderv2_breaking_the_barrier_of/
+59. Transcendence, DeepSeek Coder V2, and Compute Better Spent - The AI Timeline, accesso eseguito il giorno aprile 30, 2025, https://mail.bycloud.ai/p/issue-11
+60. DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model - GitHub, accesso eseguito il giorno aprile 30, 2025, https://github.com/deepseek-ai/DeepSeek-V2
+61. DeepSeek AI by APIpie: Overview & Key Features, accesso eseguito il giorno aprile 30, 2025, https://apipie.ai/docs/Models/Deepseek
+62. DeepSeek AI: Advancing Open-Source LLMs with MoE & Reinforcement Learning | DeepSeek-R1 & V3 Explained - Inferless, accesso eseguito il giorno aprile 30, 2025, https://www.inferless.com/learn/the-ultimate-guide-to-deepseek-models
+63. deepseek-ai/DeepSeek-V3 - Hugging Face, accesso eseguito il giorno aprile 30, 2025, https://huggingface.co/deepseek-ai/DeepSeek-V3
+64. Models - OpenRouter, accesso eseguito il giorno aprile 30, 2025, https://openrouter.ai/models
+65. What is DeepSeek AI? (Features, OpenAI Comparison, & More) - Exploding Topics, accesso eseguito il giorno aprile 30, 2025, https://explodingtopics.com/blog/deepseek-ai
+66. Authentication - DeepSeek API Docs, accesso eseguito il giorno aprile 30, 2025, https://api-docs.deepseek.com/api/deepseek-api
+67. DeepSeek-V2.5: A New Open-Source Model Combining General and Coding Capabilities, accesso eseguito il giorno aprile 30, 2025, https://api-docs.deepseek.com/news/news0905
+68. Introducing DeepSeek-V3, accesso eseguito il giorno aprile 30, 2025, https://api-docs.deepseek.com/news/news1226
+69. DeepSeek V3 - AI/ML API Documentation, accesso eseguito il giorno aprile 30, 2025, https://docs.aimlapi.com/api-references/text-models-llm/deepseek/deepseek-chat
+70. alexrudall/ruby-openai: OpenAI API + Ruby! ❤️ Now with Responses API + DeepSeek! - GitHub, accesso eseguito il giorno aprile 30, 2025, https://github.com/alexrudall/ruby-openai
+71. fireworks/models/deepseek-coder-v2-lite-instruct configuration · Issue #897 · Aider-AI/aider, accesso eseguito il giorno aprile 30, 2025, https://github.com/paul-gauthier/aider/issues/897
+72. deepseek-ai/deepseek-coder-v2-lite-instruct – API reference - Replicate, accesso eseguito il giorno aprile 30, 2025, https://replicate.com/deepseek-ai/deepseek-coder-v2-lite-instruct/api/api-reference
+73. deepseek-ai/DeepSeek-Coder-V2-Instruct-0724 - Hugging Face, accesso eseguito il giorno aprile 30, 2025, https://huggingface.co/deepseek-ai/DeepSeek-Coder-V2-Instruct-0724
+74. Understanding Modern LLMs via DeepSeek, accesso eseguito il giorno aprile 30, 2025, https://planetbanatt.net/articles/deepseek.html
+75. Deepseek Vl 7b Chat · Models - Dataloop AI, accesso eseguito il giorno aprile 30, 2025, https://dataloop.ai/library/model/deepseek-ai_deepseek-vl-7b-chat/
+76. Deepseek Vl 1.3b Chat · Models - Dataloop AI, accesso eseguito il giorno aprile 30, 2025, https://dataloop.ai/library/model/deepseek-ai_deepseek-vl-13b-chat/
+77. deepseek-vl-chat - Xinference, accesso eseguito il giorno aprile 30, 2025, https://inference.readthedocs.io/zh-cn/latest/models/builtin/llm/deepseek-vl-chat.html
+78. deepseek-ai/deepseek-vl-7b-base – Run with an API on Replicate, accesso eseguito il giorno aprile 30, 2025, https://replicate.com/deepseek-ai/deepseek-vl-7b-base
+79. DeepSeek-VL: Towards Real-World Vision-Language Understanding - GitHub, accesso eseguito il giorno aprile 30, 2025, https://github.com/deepseek-ai/DeepSeek-VL
+80. DeepSeek just released an official demo for DeepSeek VL2 Small - It's really powerful at OCR, text extraction and chat use-cases (Hugging Face Space) - Reddit, accesso eseguito il giorno aprile 30, 2025, https://www.reddit.com/r/LocalLLaMA/comments/1ii82yg/deepseek_just_released_an_official_demo_for/
+81. DeepSeek-VL2: Mixture-of-Experts Vision-Language Models for Advanced Multimodal Understanding - GitHub, accesso eseguito il giorno aprile 30, 2025, https://github.com/deepseek-ai/DeepSeek-VL2
+82. What is the context window size of DeepSeek's models? - Milvus, accesso eseguito il giorno aprile 30, 2025, https://milvus.io/ai-quick-reference/what-is-the-context-window-size-of-deepseeks-models
+83. DeepSeek Resources - Fireworks AI Docs, accesso eseguito il giorno aprile 30, 2025, https://docs.fireworks.ai/deepseek/general-deepseek
+84. DeepSeek-Coder-V2: Breaking the Barrier of Closed-Source Models in Code Intelligence - arXiv, accesso eseguito il giorno aprile 30, 2025, https://arxiv.org/pdf/2406.11931
+85. DeepSeek Coder, accesso eseguito il giorno aprile 30, 2025, https://deepseekcoder.github.io/
+86. DeepSeek-Coder-V2 – Run with an API - OpenRouter, accesso eseguito il giorno aprile 30, 2025, https://openrouter.ai/deepseek/deepseek-coder/api
+87. All models overview - Anthropic API, accesso eseguito il giorno aprile 30, 2025, https://docs.anthropic.com/en/docs/about-claude/models/all-models
+88. Use Anthropic's Claude models | Generative AI on Vertex AI - Google Cloud, accesso eseguito il giorno aprile 30, 2025, https://cloud.google.com/vertex-ai/generative-ai/docs/partner-models/use-claude
+89. Amazon Bedrock API - Anthropic, accesso eseguito il giorno aprile 30, 2025, https://docs.anthropic.com/en/api/claude-on-amazon-bedrock
+90. The Claude 3 Model Family: Opus, Sonnet, Haiku - Anthropic, accesso eseguito il giorno aprile 30, 2025, https://www-cdn.anthropic.com/de8ba9b01c9ab7cbabf5c33b80b7bbc618857627/Model_Card_Claude_3.pdf
+91. Build with Claude - Anthropic, accesso eseguito il giorno aprile 30, 2025, https://www.anthropic.com/api
+92. Intro to Claude - Anthropic API, accesso eseguito il giorno aprile 30, 2025, https://docs.anthropic.com/en/docs/intro-to-claude
+93. Anthropic's Claude - Models in Amazon Bedrock - AWS, accesso eseguito il giorno aprile 30, 2025, https://aws.amazon.com/bedrock/claude/
+94. Welcome to Claude - Anthropic API, accesso eseguito il giorno aprile 30, 2025, https://docs.anthropic.com/en/docs/welcome
+95. List Models - Anthropic API, accesso eseguito il giorno aprile 30, 2025, https://docs.anthropic.com/en/api/models-list
+96. Introducing the next generation of Claude - Anthropic, accesso eseguito il giorno aprile 30, 2025, https://www.anthropic.com/news/claude-3-family
+97. Claude 3.5 Sonnet Model Card - PromptHub, accesso eseguito il giorno aprile 30, 2025, https://www.prompthub.us/models/claude-3-5-sonnet
+98. GPT-4o mini vs Claude 3.5 Sonnet - Eden AI, accesso eseguito il giorno aprile 30, 2025, https://www.edenai.co/post/gpt-4o-mini-vs-claude-3-5-sonnet
+99. Claude 3.5 Sonnet vs GPT-4o: Context Window and Token Limit | 16x Prompt, accesso eseguito il giorno aprile 30, 2025, https://prompt.16x.engineer/blog/claude-sonnet-gpt4-context-window-token-limit
+100. Introducing Claude 3.5 Sonnet - Anthropic, accesso eseguito il giorno aprile 30, 2025, https://www.anthropic.com/news/claude-3-5-sonnet
+101. Something's OFF with the new Claude 3.5 sonnet : r/ClaudeAI - Reddit, accesso eseguito il giorno aprile 30, 2025, https://www.reddit.com/r/ClaudeAI/comments/1gbi0mr/somethings_off_with_the_new_claude_35_sonnet/
+102. Claude Sonnet 3.5 VS ChatGPT 4o - AI/ML API, accesso eseguito il giorno aprile 30, 2025, https://aimlapi.com/comparisons/claude-sonnet-3-5-vs-chatgpt-4o
+103. Claude 3.5 Sonnet - AI Model Details - Simtheory, accesso eseguito il giorno aprile 30, 2025, https://simtheory.ai/model-card/claude-3.5-sonnet-latest/
+104. Claude 3 Opus Model Card - PromptHub, accesso eseguito il giorno aprile 30, 2025, https://www.prompthub.us/models/claude-3-opus
+105. AI with 200k Context Window: Call Claude 3 (Antropic AI) via API if you have an API key and format JSON - Show and Tell - Text Blaze Community, accesso eseguito il giorno aprile 30, 2025, https://community.blaze.today/t/ai-with-200k-context-window-call-claude-3-antropic-ai-via-api-if-you-have-an-api-key-and-format-json/36590
+106. Claude 3 Opus: API Provider Performance Benchmarking & Price Analysis, accesso eseguito il giorno aprile 30, 2025, https://artificialanalysis.ai/models/claude-3-opus/providers
+107. Getting Started with Claude 3 and the Claude 3 API - DataCamp, accesso eseguito il giorno aprile 30, 2025, https://www.datacamp.com/tutorial/getting-started-with-claude-3-and-the-claude-3-api
+108. Claude API: How to get a key and use the API - Zapier, accesso eseguito il giorno aprile 30, 2025, https://zapier.com/blog/claude-api/
+109. Claude 3 Haiku Model Card - tokens - Context.ai, accesso eseguito il giorno aprile 30, 2025, https://context.ai/model/claude-3-haiku
+110. Claude 3 Haiku vs GPT-4 - Detailed Performance & Feature Comparison - DocsBot AI, accesso eseguito il giorno aprile 30, 2025, https://docsbot.ai/models/compare/claude-3-haiku/gpt-4
+111. Claude 3 Haiku: API Provider Performance Benchmarking & Price Analysis, accesso eseguito il giorno aprile 30, 2025, https://artificialanalysis.ai/models/claude-3-haiku/providers
+112. Claude 3 context window is a big deal : r/singularity - Reddit, accesso eseguito il giorno aprile 30, 2025, https://www.reddit.com/r/singularity/comments/1b6e0id/claude_3_context_window_is_a_big_deal/
+113. Anthropic's Claude 3 Haiku model is now available on Amazon Bedrock | AWS News Blog, accesso eseguito il giorno aprile 30, 2025, https://aws.amazon.com/blogs/aws/anthropics-claude-3-haiku-model-is-now-available-in-amazon-bedrock/
+114. Messages - Anthropic, accesso eseguito il giorno aprile 30, 2025, https://docs.anthropic.com/en/api/messages
+115. Gemini 1.0 Pro: API Provider Performance Benchmarking & Price Analysis, accesso eseguito il giorno aprile 30, 2025, https://artificialanalysis.ai/models/gemini-1-0-pro/providers
+116. Solved: Gemini 1.0 Pro tekon count not 32K - Google Cloud Community, accesso eseguito il giorno aprile 30, 2025, https://www.googlecloudcommunity.com/gc/AI-ML/Gemini-1-0-Pro-tekon-count-not-32K/m-p/719426
+117. www.reddit.com, accesso eseguito il giorno aprile 30, 2025, https://www.reddit.com/r/GoogleGeminiAI/comments/1b2rkqh/what_is_the_character_limit_of_gemini/
+118. Google's Gemini 1.0 Pro - AI Model Details - DocsBot AI, accesso eseguito il giorno aprile 30, 2025, https://docsbot.ai/models/gemini-1-0-pro
+119. deepseek-coder-v2 - Ollama, accesso eseguito il giorno aprile 30, 2025, https://ollama.com/library/deepseek-coder-v2
+120. deepseek-ai/DeepSeek-V2 - Hugging Face, accesso eseguito il giorno aprile 30, 2025, https://huggingface.co/deepseek-ai/DeepSeek-V2
