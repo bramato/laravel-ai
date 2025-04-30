@@ -14,10 +14,22 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Throwable;
 
+/**
+ * Client implementation for interacting with OpenAI's Chat Completions API.
+ */
 class OpenAiClient implements LlmClientInterface
 {
+    /**
+     * The configured HTTP client instance.
+     */
     protected PendingRequest $httpClient;
 
+    /**
+     * @param HttpClientFactory $httpFactory The Laravel HTTP client factory.
+     * @param string $apiKey The OpenAI API key.
+     * @param string $model The default OpenAI model ID to use for requests.
+     * @param array $options Additional configuration options (e.g., base_uri, timeout, organization).
+     */
     public function __construct(
         protected HttpClientFactory $httpFactory,
         protected string $apiKey,
@@ -28,7 +40,9 @@ class OpenAiClient implements LlmClientInterface
     }
 
     /**
-     * Configures the HTTP client with base URI and headers.
+     * Configures the HTTP client with base URI, authentication, and specific headers.
+     *
+     * @return PendingRequest The configured HTTP client.
      */
     protected function configureHttpClient(): PendingRequest
     {
@@ -39,6 +53,7 @@ class OpenAiClient implements LlmClientInterface
         $client = $this->httpFactory->baseUrl($baseUri)
             ->withToken($this->apiKey)
             ->acceptJson()
+            ->contentTypeJson() // Ensure Content-Type is set
             ->timeout($timeout);
 
         if ($organization) {
@@ -51,9 +66,11 @@ class OpenAiClient implements LlmClientInterface
     /**
      * Sends a chat request to the OpenAI API.
      *
-     * @throws AuthenticationException
-     * @throws InvalidResponseException
-     * @throws LlmApiException
+     * @param ChatRequest $request The DTO containing the prompt, history, and options.
+     * @return ChatResponse The DTO containing the API response.
+     * @throws AuthenticationException If the API key is invalid (401).
+     * @throws InvalidResponseException If the API response structure is invalid.
+     * @throws LlmApiException For other API errors (rate limits, server errors, etc.).
      */
     public function chat(ChatRequest $request): ChatResponse
     {
@@ -64,10 +81,9 @@ class OpenAiClient implements LlmClientInterface
 
             // Handle specific HTTP errors first before checking success
             if ($response->status() === 401) {
-                throw new AuthenticationException(
-                    $response->json('error.message', 'Authentication failed'),
-                    $response->status()
-                );
+                // Use a more specific error message if available from the response
+                $errorMessage = $response->json('error.message', 'OpenAI Authentication failed - Invalid API Key');
+                throw new AuthenticationException($errorMessage, $response->status());
             }
 
             if ($response->failed()) {
@@ -78,25 +94,34 @@ class OpenAiClient implements LlmClientInterface
 
             // Validate structure AFTER checking for errors
             if (! $this->isValidResponseStructure($responseData)) {
+                // Check if it was an error response that somehow returned 200 OK
+                if (isset($responseData['error']['message'])) {
+                    $errorMessage = $responseData['error']['message'];
+                    $errorCode = $responseData['error']['code'] ?? 'unknown_error_code';
+                    throw new InvalidResponseException("Invalid response structure, received error details instead: ({$errorCode}) {$errorMessage}");
+                }
                 throw new InvalidResponseException('Invalid response structure received from OpenAI API.');
             }
 
             return $this->mapResponseToDTO($responseData, $request->jsonMode);
         } catch (RequestException $e) {
-            // This catch might now only handle connection errors or non-401 HTTP errors if not caught above
-            // Re-throw as a generic LlmApiException or handle specific cases
+            // This catch handles connection errors or other client-side request issues
             throw new LlmApiException("HTTP Request Error calling OpenAI API: {$e->getMessage()}", $e->getCode(), $e);
         } catch (Throwable $e) {
-            // Rethrow our own exceptions, wrap others
+            // Rethrow our own exceptions, wrap others for clarity
             if ($e instanceof LlmApiException || $e instanceof AuthenticationException || $e instanceof InvalidResponseException) {
                 throw $e;
             }
-            throw new LlmApiException("An unexpected error occurred: {$e->getMessage()}", $e->getCode(), $e);
+            // Wrap unexpected errors (e.g., issues within the client logic itself)
+            throw new LlmApiException("An unexpected error occurred during OpenAI API interaction: {$e->getMessage()}", $e->getCode(), $e);
         }
     }
 
     /**
-     * Builds the payload for the OpenAI API request.
+     * Builds the payload array for the OpenAI Chat Completions API request.
+     *
+     * @param ChatRequest $request The request DTO.
+     * @return array The payload ready for JSON encoding.
      */
     protected function buildPayload(ChatRequest $request): array
     {
@@ -105,92 +130,103 @@ class OpenAiClient implements LlmClientInterface
             'messages' => [],
         ];
 
+        // Add system message if provided
         if ($request->systemMessage) {
             $payload['messages'][] = ['role' => 'system', 'content' => $request->systemMessage];
         }
 
         // Add history messages
         foreach ($request->history as $message) {
-            // Basic validation - ensure role and content exist (already validated by DTO rules)
-            if (isset($message['role'], $message['content'])) {
-                $payload['messages'][] = ['role' => $message['role'], 'content' => $message['content']];
-            }
+            // DTO validation ensures role/content exist
+            $payload['messages'][] = ['role' => $message['role'], 'content' => $message['content']];
         }
 
-        // Add the main prompt
+        // Add the main user prompt
         $payload['messages'][] = ['role' => 'user', 'content' => $request->prompt];
 
-        // Add options (temperature, max_tokens, etc.) - filter only known OpenAI params?
+        // Add allowed options from the request DTO
         if (!empty($request->options)) {
-            // Example: only allow specific OpenAI options
-            $allowedOptions = ['temperature', 'max_tokens', 'top_p', 'frequency_penalty', 'presence_penalty', 'stop', 'seed'];
+            $allowedOptions = ['temperature', 'max_tokens', 'top_p', 'frequency_penalty', 'presence_penalty', 'stop', 'seed', 'stream', 'logprobs', 'top_logprobs', 'user']; // Added more standard OpenAI options
             $payload += array_intersect_key($request->options, array_flip($allowedOptions));
         }
 
-        // Handle JSON mode
+        // Handle JSON mode parameter
         if ($request->jsonMode) {
             $payload['response_format'] = ['type' => 'json_object'];
-            // Ensure the prompt instructs JSON output (crucial for OpenAI's JSON mode)
-            // We might add a check here or rely on the user providing the correct prompt.
+            // Note: The user MUST ensure the prompt instructs the model to output JSON
+            // when using this mode with OpenAI.
         }
 
         return $payload;
     }
 
     /**
-     * Maps the successful OpenAI API response to the ChatResponse DTO.
+     * Maps the successful OpenAI API response data array to the ChatResponse DTO.
+     *
+     * @param array $responseData The decoded JSON response data from the API.
+     * @param bool $wasJsonModeRequested Indicates if the original request asked for JSON.
+     * @return ChatResponse The populated response DTO.
      */
     protected function mapResponseToDTO(array $responseData, bool $wasJsonModeRequested): ChatResponse
     {
         $content = $responseData['choices'][0]['message']['content'] ?? '';
         $decodedJson = null;
 
-        if ($wasJsonModeRequested) {
-            // Attempt to decode if JSON mode was requested
+        // Attempt to decode content if JSON mode was requested
+        if ($wasJsonModeRequested && !empty($content)) {
             $decoded = json_decode($content, true);
             if (json_last_error() === JSON_ERROR_NONE) {
                 $decodedJson = $decoded;
             }
-            // else: leave $decodedJson as null, content remains raw string
+            // If decoding fails, $decodedJson remains null, $content holds the raw string.
         }
 
         return new ChatResponse(
-            $content,
+            $content, // Raw content string (might be JSON)
             $responseData['choices'][0]['finish_reason'] ?? 'unknown',
             $responseData['model'] ?? $this->model,
             $responseData['id'] ?? 'unknown',
             $responseData['usage'] ?? null,
-            $wasJsonModeRequested,
-            $decodedJson,
-            $responseData
+            $wasJsonModeRequested && ($decodedJson !== null), // isJson is true only if requested AND successfully decoded
+            $decodedJson, // The decoded array/value, or null
+            $responseData // Keep the original raw response
         );
     }
 
     /**
-     * Handles non-successful HTTP responses.
+     * Handles non-successful (non-401) HTTP responses.
      *
-     * @throws LlmApiException
-     * @throws AuthenticationException
+     * @param Response $response The failed HTTP response.
+     * @throws LlmApiException Mapped API error.
      */
     protected function handleErrorResponse(Response $response): void
     {
         $statusCode = $response->status();
-        // Ensure error data exists before accessing keys
-        $errorData = $response->json('error');
-        $errorMessage = is_array($errorData) && isset($errorData['message']) ? $errorData['message'] : $response->body();
-        $errorCode = is_array($errorData) && isset($errorData['code']) ? $errorData['code'] : $statusCode;
+        $errorData = $response->json('error'); // Attempt to get structured error
 
+        $errorMessage = 'Unknown OpenAI API Error';
+        $errorCode = $statusCode; // Default to HTTP status code
+
+        if (is_array($errorData)) {
+            $errorMessage = $errorData['message'] ?? $response->body(); // Use message if available, else raw body
+            $errorCode = $errorData['code'] ?? $statusCode; // Use specific code if available
+        }
+
+        // Throw specific exceptions based on common status codes
         match ($statusCode) {
-            // 401 should ideally be caught before this method
-            // 401 => throw new AuthenticationException("OpenAI API Error ({$errorCode}): {$errorMessage}", $statusCode),
-            429 => throw new LlmApiException("OpenAI API Error - Rate Limit Exceeded ({$errorCode}): {$errorMessage}", $statusCode), // Consider RateLimitException
+            429 => throw new LlmApiException("OpenAI API Error - Rate Limit Exceeded ({$errorCode}): {$errorMessage}", $statusCode), // Consider a dedicated RateLimitException
+            400 => throw new LlmApiException("OpenAI API Error - Bad Request ({$errorCode}): {$errorMessage}", $statusCode),
+            500 => throw new LlmApiException("OpenAI API Error - Internal Server Error ({$errorCode}): {$errorMessage}", $statusCode),
             // Catch other client/server errors
             default => throw new LlmApiException("OpenAI API Error ({$errorCode}, status:{$statusCode}): {$errorMessage}", $statusCode),
         };
     }
 
     /**
-     * Validates the basic structure of the OpenAI response.
+     * Validates the basic structure of a successful OpenAI response array.
+     *
+     * @param array|null $responseData The decoded JSON data from the response.
+     * @return bool True if the structure seems valid for a successful response, false otherwise.
      */
     protected function isValidResponseStructure(?array $responseData): bool
     {
@@ -198,9 +234,10 @@ class OpenAiClient implements LlmClientInterface
             return false;
         }
 
+        // Basic check for essential fields in a successful response
         return isset($responseData['id'], $responseData['model'], $responseData['choices']) &&
             is_array($responseData['choices']) &&
             count($responseData['choices']) > 0 &&
-            isset($responseData['choices'][0]['message']['content']);
+            isset($responseData['choices'][0]['message'], $responseData['choices'][0]['message']['content']); // Check nested content existence
     }
 }

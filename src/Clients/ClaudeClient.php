@@ -15,12 +15,36 @@ use Illuminate\Http\Client\Response;
 use InvalidArgumentException;
 use Throwable;
 
+/**
+ * Client implementation for interacting with Anthropic's Claude API.
+ */
 class ClaudeClient implements LlmClientInterface
 {
+    /**
+     * The configured HTTP client instance.
+     */
     protected PendingRequest $httpClient;
+
+    /**
+     * The configured Claude API version (e.g., '2023-06-01').
+     */
     protected string $apiVersion;
+
+    /**
+     * Default value for max_tokens if not provided in options.
+     * Claude API requires this parameter.
+     */
     protected const DEFAULT_MAX_TOKENS = 1024;
 
+    /**
+     * @param HttpClientFactory $httpFactory The Laravel HTTP client factory.
+     * @param string $apiKey The Claude API key.
+     * @param string $model The default Claude model ID to use for requests.
+     * @param array $options Additional configuration options (e.g., base_uri, timeout, version).
+     *
+     * @throws AuthenticationException If the API key is missing.
+     * @throws InvalidArgumentException If the API version is missing.
+     */
     public function __construct(
         protected HttpClientFactory $httpFactory,
         protected string $apiKey,
@@ -34,19 +58,21 @@ class ClaudeClient implements LlmClientInterface
     /**
      * Configures the HTTP client with base URI and required Claude headers.
      *
-     * @throws AuthenticationException
+     * @return PendingRequest The configured HTTP client.
+     * @throws AuthenticationException If API key is missing.
+     * @throws InvalidArgumentException If API version is missing.
      */
     protected function configureHttpClient(): PendingRequest
     {
         $baseUri = $this->options['base_uri'] ?? 'https://api.anthropic.com/v1';
-        $timeout = $this->options['timeout'] ?? 60;
+        $timeout = $this->options['timeout'] ?? 60; // Increased default timeout
 
         if (empty($this->apiKey)) {
             throw new AuthenticationException('Claude API Key is missing. Please configure it in laravel-ai.php or .env.');
         }
         if (empty($this->apiVersion)) {
-            // Should not happen with default, but good practice
-            throw new InvalidArgumentException('Claude API Version (anthropic-version header) is missing. Please configure it in laravel-ai.php options.');
+            // Should not happen with default, but good practice to check
+            throw new InvalidArgumentException('Claude API Version (anthropic-version header) is required. Please configure providers.claude.options.version.');
         }
 
         return $this->httpFactory->baseUrl($baseUri)
@@ -55,204 +81,255 @@ class ClaudeClient implements LlmClientInterface
                 'anthropic-version' => $this->apiVersion,
             ])
             ->acceptJson()
-            ->contentTypeJson() // Claude expects application/json
+            ->contentTypeJson() // Claude expects application/json Content-Type
             ->timeout($timeout);
     }
 
     /**
-     * Sends a chat request to the Claude API.
+     * Sends a chat request to the Claude API's /messages endpoint.
      *
-     * @throws AuthenticationException
-     * @throws InvalidResponseException
-     * @throws LlmApiException
+     * @param ChatRequest $request The DTO containing the prompt, history, system prompt, and options.
+     * @return ChatResponse The DTO containing the API response.
+     * @throws AuthenticationException If the API key is invalid or permissions are insufficient (401, 403).
+     * @throws InvalidResponseException If the API response structure is invalid or indicates an error.
+     * @throws LlmApiException For other API errors (rate limits, server errors, bad requests etc.).
      */
     public function chat(ChatRequest $request): ChatResponse
     {
-        $payload = $this->buildPayload($request);
+        try {
+            // Build payload *inside* try-catch to catch message validation errors
+            $payload = $this->buildPayload($request);
+        } catch (Throwable $e) {
+            // Rethrow specific exceptions, wrap others
+            if ($e instanceof LlmApiException) {
+                throw $e;
+            }
+            throw new LlmApiException("Failed to build Claude payload: {$e->getMessage()}", $e->getCode(), $e);
+        }
 
         try {
             $response = $this->httpClient->post('/messages', $payload);
 
-            // Handle specific HTTP errors
+            // Handle specific HTTP errors first
             if ($response->status() === 401) {
-                throw new AuthenticationException(
-                    $response->json('error.message', 'Claude Authentication failed - Invalid API Key'),
-                    $response->status()
-                );
+                $errorMessage = $response->json('error.message', 'Claude Authentication failed - Invalid API Key');
+                throw new AuthenticationException($errorMessage, $response->status());
             }
             if ($response->status() === 403) {
-                // Could be permissions or other issues
-                throw new AuthenticationException(
-                    $response->json('error.message', 'Claude Forbidden - Check Permissions or Request'),
-                    $response->status()
-                );
+                // Could be permissions or other access issues
+                $errorMessage = $response->json('error.message', 'Claude Forbidden - Check Permissions or Request Details');
+                throw new AuthenticationException($errorMessage, $response->status());
             }
 
+            // Handle other failed responses (4xx, 5xx)
             if ($response->failed()) {
                 $this->handleErrorResponse($response);
             }
 
             $responseData = $response->json();
 
+            // Validate the structure of the successful response
             if (! $this->isValidResponseStructure($responseData)) {
-                // Claude might return error details even with 200 OK sometimes
+                // Check if it was an error structure returned with a 200 OK status
                 if (isset($responseData['error']['type'])) {
                     $errorType = $responseData['error']['type'];
-                    $errorMessage = $responseData['error']['message'] ?? 'Unknown error detail';
-                    throw new InvalidResponseException("Invalid response structure, potential API error ({$errorType}): {$errorMessage}");
+                    $errorMessage = $responseData['error']['message'] ?? 'Unknown error detail in 200 OK response';
+                    // Classify this scenario as InvalidResponseException
+                    throw new InvalidResponseException("Invalid response structure, received error details instead: ({$errorType}) {$errorMessage}");
                 }
-                throw new InvalidResponseException('Invalid response structure received from Claude API.');
+                // General invalid structure if no specific error found
+                throw new InvalidResponseException('Invalid response structure received from Claude API (missing expected fields).');
             }
 
             return $this->mapResponseToDTO($responseData, $request->jsonMode);
         } catch (RequestException $e) {
+            // Handles connection errors or other client-side request issues
             throw new LlmApiException("HTTP Request Error calling Claude API: {$e->getMessage()}", $e->getCode(), $e);
         } catch (Throwable $e) {
-            // Rethrow our own exceptions, wrap others
+            // Rethrow our own specific exceptions, wrap others for clarity
             if ($e instanceof LlmApiException || $e instanceof AuthenticationException || $e instanceof InvalidResponseException) {
                 throw $e;
             }
-            throw new LlmApiException("An unexpected error occurred calling Claude API: {$e->getMessage()}", $e->getCode(), $e);
+            // Wrap unexpected errors during API interaction
+            throw new LlmApiException("An unexpected error occurred during Claude API interaction: {$e->getMessage()}", $e->getCode(), $e);
         }
     }
 
     /**
-     * Builds the payload for the Claude API request.
+     * Builds the payload array for the Claude Messages API request.
+     *
+     * Handles mapping of system prompts, ensures message history alternates roles correctly,
+     * includes the mandatory `max_tokens` parameter, and adds other supported options.
+     *
+     * @param ChatRequest $request The request DTO.
+     * @return array The payload ready for JSON encoding.
+     * @throws LlmApiException If the message sequence validation fails.
      */
     protected function buildPayload(ChatRequest $request): array
     {
         $payload = [
             'model' => $this->model,
             'messages' => [],
-            // 'max_tokens' is required by Claude API
+            // 'max_tokens' is required by the Claude API.
             'max_tokens' => (int) ($request->options['max_tokens'] ?? self::DEFAULT_MAX_TOKENS),
         ];
 
-        // Handle system prompt (if provided)
+        // Handle system prompt using the dedicated 'system' parameter.
         if ($request->systemMessage) {
-            // The 'system' parameter is the recommended way
             $payload['system'] = $request->systemMessage;
         }
 
-        // Add history messages (user/assistant)
-        // Ensure alternating roles, starting with user if system prompt wasn't used.
+        // --- Build Messages Array ---
+        // Ensure messages strictly alternate between 'user' and 'assistant' roles.
         $lastRole = null;
-        if (empty($request->history) && !isset($payload['system'])) {
-            // If no history and no system prompt, the main prompt is the first user message.
-            // Handled below.
-        } else {
-            foreach ($request->history as $message) {
-                if (isset($message['role'], $message['content']) && in_array($message['role'], ['user', 'assistant'])) {
-                    // Ensure roles alternate (Claude strict requirement)
-                    if ($lastRole !== null && $lastRole === $message['role']) {
-                        // Option 1: Throw error
-                        throw new LlmApiException("Invalid message sequence for Claude: Consecutive messages from role '{$message['role']}'. History must alternate roles.", 400);
-                        // Option 2: Try to merge? Risky, could break context.
-                        // Option 3: Insert dummy message? Also risky.
-                        // Let's throw for now, user should provide correct history.
-                    }
-                    $payload['messages'][] = ['role' => $message['role'], 'content' => $message['content']];
-                    $lastRole = $message['role'];
+        // Start role check based on whether a system prompt is present.
+        // If system prompt exists, the first message *must* be 'user'.
+        // If no system prompt, the first message *must* be 'user' (which will be the main prompt if history is empty).
+
+        foreach ($request->history as $message) {
+            if (isset($message['role'], $message['content']) && in_array($message['role'], ['user', 'assistant'])) {
+                $currentRole = $message['role'];
+
+                // Prevent consecutive messages from the same role.
+                if ($lastRole !== null && $lastRole === $currentRole) {
+                    throw new LlmApiException(
+                        "Invalid message sequence for Claude: Consecutive messages found from role '{$currentRole}'. History must alternate between 'user' and 'assistant'.",
+                        400 // Bad Request
+                    );
                 }
-            }
-            // Validate role alternation with the upcoming main prompt
-            if ($lastRole === 'user') {
-                throw new LlmApiException('Invalid message sequence for Claude: Last message in history cannot be from \'user\'.', 400);
+                // Ensure the very first message (if history is not empty) starts correctly relative to system prompt.
+                if ($lastRole === null && isset($payload['system']) && $currentRole !== 'user') {
+                    throw new LlmApiException(
+                        "Invalid message sequence for Claude: First message after a system prompt must be from role 'user'.",
+                        400
+                    );
+                }
+
+                $payload['messages'][] = ['role' => $currentRole, 'content' => $message['content']];
+                $lastRole = $currentRole;
             }
         }
 
-        // Add the main prompt (must be 'user' role)
+        // Final validation: The last message *before* adding the main prompt must be 'assistant' (if history exists).
+        if ($lastRole === 'user') {
+            throw new LlmApiException(
+                "Invalid message sequence for Claude: The last message in the history array must be from role 'assistant' before adding the final user prompt.",
+                400
+            );
+        }
+
+        // Add the main user prompt - this must always be the last message.
         $payload['messages'][] = ['role' => 'user', 'content' => $request->prompt];
 
-        // Add other allowed options
+        // --- Add Other Options ---
         if (!empty($request->options)) {
-            $allowedOptions = ['temperature', 'top_p', 'top_k', 'stop_sequences'];
+            // Filter and add other supported Claude options.
+            $allowedOptions = ['temperature', 'top_p', 'top_k', 'stop_sequences', 'stream']; // Added stream
             $payload += array_intersect_key($request->options, array_flip($allowedOptions));
         }
 
-        // Claude does not have a specific 'json_mode' parameter.
-        // Achieving JSON output relies on prompt engineering.
+        // --- JSON Mode Handling ---
+        // Claude does not have a specific 'json_mode' API parameter.
+        // The DTO flag `jsonMode` only controls whether the client *attempts* to parse the response.
+        // Achieving JSON output relies entirely on prompt engineering.
         if ($request->jsonMode) {
-            // Optionally, log a warning or modify prompt here if desired.
-            // logger()->warning('Claude does not support a dedicated JSON mode parameter. Ensure your prompt requests JSON output.');
+            // Optionally, add a log warning if needed:
+            // logger()->warning('Claude does not support a dedicated JSON mode parameter. Ensure your prompt explicitly requests JSON output.');
         }
 
-        // Ensure max_tokens is always set and is an integer
+        // Ensure max_tokens is always an integer (double-check after merging options).
         if (!isset($payload['max_tokens']) || !is_int($payload['max_tokens'])) {
             $payload['max_tokens'] = self::DEFAULT_MAX_TOKENS;
+        } elseif ($payload['max_tokens'] <= 0) {
+            // Ensure max_tokens is positive, required by Claude
+            throw new LlmApiException('Invalid option: max_tokens must be a positive integer for Claude.', 400);
         }
 
         return $payload;
     }
 
     /**
-     * Maps the successful Claude API response to the ChatResponse DTO.
+     * Maps the successful Claude API response data array to the ChatResponse DTO.
+     *
+     * @param array $responseData The decoded JSON response data from the API.
+     * @param bool $wasJsonModeRequested Indicates if the original request asked for JSON.
+     * @return ChatResponse The populated response DTO.
      */
     protected function mapResponseToDTO(array $responseData, bool $wasJsonModeRequested): ChatResponse
     {
-        // Claude response: `content` is an array, usually with one text block.
+        // Claude's response `content` is an array of blocks. For non-streaming, usually one text block.
+        // We concatenate the text from all text blocks.
         $content = '';
-        if (isset($responseData['content']) && is_array($responseData['content']) && isset($responseData['content'][0]['text'])) {
-            // Concatenate text from all content blocks if there are multiple (though usually just one for non-streaming)
+        if (isset($responseData['content']) && is_array($responseData['content'])) {
             foreach ($responseData['content'] as $block) {
-                if ($block['type'] === 'text') {
+                if (isset($block['type']) && $block['type'] === 'text' && isset($block['text'])) {
                     $content .= $block['text'];
                 }
+                // Future: Could potentially handle other block types like 'tool_use'.
             }
         }
 
+        // Attempt to decode content if JSON mode was requested (via prompt).
         $decodedJson = null;
         if ($wasJsonModeRequested && !empty($content)) {
-            // Attempt to decode if JSON mode was requested via prompt
             $decoded = json_decode($content, true);
             if (json_last_error() === JSON_ERROR_NONE) {
                 $decodedJson = $decoded;
             }
-            // else: $decodedJson remains null, $content holds the raw string
+            // If decoding fails, $decodedJson remains null.
         }
 
         return new ChatResponse(
-            $content,
+            $content, // Raw content string (potentially JSON if prompted correctly)
             $responseData['stop_reason'] ?? 'unknown',
-            $responseData['model'] ?? $this->model,
-            $responseData['id'] ?? 'unknown', // Claude provides an ID
+            $responseData['model'] ?? $this->model, // Model ID from response or config
+            $responseData['id'] ?? 'unknown', // Claude provides a message ID
             $responseData['usage'] ?? null, // Claude provides usage {input_tokens, output_tokens}
-            $wasJsonModeRequested && ($decodedJson !== null),
-            $decodedJson,
-            $responseData
+            $wasJsonModeRequested && ($decodedJson !== null), // isJson true only if requested AND decoded
+            $decodedJson, // Decoded array/value or null
+            $responseData // Original raw response
         );
     }
 
     /**
-     * Handles non-successful HTTP responses from Claude.
+     * Handles non-successful (non-401/403) HTTP responses from Claude.
      *
-     * @throws LlmApiException
+     * @param Response $response The failed HTTP response.
+     * @throws LlmApiException Mapped API error based on Claude error types.
      */
     protected function handleErrorResponse(Response $response): void
     {
         $statusCode = $response->status();
+        // Claude typically wraps errors in an 'error' object with a 'type' and 'message'.
         $errorData = $response->json('error');
 
         $errorMessage = 'Unknown Claude API Error';
-        $errorType = 'unknown_error'; // Claude uses `type` for errors
+        $errorType = 'unknown_error_type'; // Claude uses `type` (e.g., 'invalid_request_error')
 
         if (is_array($errorData)) {
-            $errorType = $errorData['type'] ?? $statusCode;
+            $errorType = $errorData['type'] ?? $statusCode; // Use type if available, fallback to status
             $errorMessage = $errorData['message'] ?? $response->body();
         }
 
+        // Map status codes and potentially error types to specific exceptions or messages.
         match ($statusCode) {
-            // 401/403 handled in chat()
+            // 401/403 are handled directly in chat() for AuthenticationException.
             400 => throw new LlmApiException("Claude API Error - Bad Request ({$errorType}): {$errorMessage}", $statusCode),
             429 => throw new LlmApiException("Claude API Error - Rate Limit Exceeded ({$errorType}): {$errorMessage}", $statusCode),
             500 => throw new LlmApiException("Claude API Error - Internal Server Error ({$errorType}): {$errorMessage}", $statusCode),
-            529 => throw new LlmApiException("Claude API Error - Overloaded ({$errorType}): {$errorMessage}", $statusCode), // Specific Claude overload error
+            529 => throw new LlmApiException("Claude API Error - Overloaded ({$errorType}): {$errorMessage}", $statusCode), // Claude specific overload error
             default => throw new LlmApiException("Claude API Error ({$errorType}, status:{$statusCode}): {$errorMessage}", $statusCode),
         };
     }
 
     /**
-     * Validates the basic structure of the Claude response.
+     * Validates the basic structure of a successful Claude response array.
+     *
+     * Checks for essential fields like id, model, content array, stop_reason, and usage.
+     * Does not validate error structures here, as that implies failure.
+     *
+     * @param array|null $responseData The decoded JSON data from the response.
+     * @return bool True if the structure seems valid for a successful response, false otherwise.
      */
     protected function isValidResponseStructure(?array $responseData): bool
     {
@@ -260,16 +337,17 @@ class ClaudeClient implements LlmClientInterface
             return false;
         }
 
-        // Check for error structure first
+        // Check specifically for the presence of an error object first.
+        // If an error object exists, even with a 200 status, treat structure as invalid (for success path).
         if (isset($responseData['error']['type'])) {
-            return false; // Let chat() method handle the error content
+            return false; // Let the chat() method handle responses containing error details.
         }
 
-        // Check for successful response structure
-        return isset($responseData['id'], $responseData['model'], $responseData['content']) &&
-            is_array($responseData['content']) &&
-            count($responseData['content']) > 0 &&
-            isset($responseData['content'][0]['type'], $responseData['content'][0]['text']) && // Check first block
-            isset($responseData['stop_reason'], $responseData['usage']);
+        // Check for the essential fields of a successful response.
+        return isset($responseData['id'], $responseData['type']) && $responseData['type'] === 'message' &&
+            isset($responseData['model'], $responseData['role']) && $responseData['role'] === 'assistant' &&
+            isset($responseData['content']) && is_array($responseData['content']) && count($responseData['content']) > 0 &&
+            isset($responseData['content'][0]['type'], $responseData['content'][0]['text']) && // Ensure first content block looks okay
+            isset($responseData['stop_reason'], $responseData['usage']); // Check stop_reason and usage
     }
 }

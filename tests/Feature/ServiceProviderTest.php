@@ -4,11 +4,8 @@ namespace Bramato\LaravelAi\Tests\Feature;
 
 use Bramato\LaravelAi\Contracts\LlmClientInterface;
 use Bramato\LaravelAi\LaravelAiServiceProvider;
-use Bramato\LaravelAi\Tests\TestCase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
-
-uses(TestCase::class);
 
 it('loads the service provider', function () {
     // Check if the provider is loaded by Testbench

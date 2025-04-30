@@ -3,10 +3,7 @@
 namespace Bramato\LaravelAi\Tests\Feature;
 
 use Bramato\LaravelAi\DTOs\ChatRequest;
-use Bramato\LaravelAi\Tests\TestCase;
 use Illuminate\Validation\ValidationException;
-
-uses(TestCase::class);
 
 // Test basic instantiation with required prompt
 it('can be instantiated with required data', function () {

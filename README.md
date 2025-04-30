@@ -3,107 +3,228 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/bramato/laravel-ai.svg?style=flat-square)](https://packagist.org/packages/bramato/laravel-ai)
 [![Total Downloads](https://img.shields.io/packagist/dt/bramato/laravel-ai.svg?style=flat-square)](https://packagist.org/packages/bramato/laravel-ai)
 
-This package provides a unified Laravel client to interact with the chat APIs of various Large Language Models (LLMs) such as ChatGPT (OpenAI), Gemini (Google), Claude (Anthropic), and DeepSeek.
+This package provides a unified Laravel client to interact with the chat APIs of various Large Language Models (LLMs):
 
-The goal is to abstract the differences between the APIs, offering a single, consistent interface within the Laravel framework.
+-   **OpenAI** (ChatGPT models like `gpt-4`, `gpt-3.5-turbo`)
+-   **Google Gemini** (e.g., `gemini-1.5-pro-latest`, `gemini-1.0-pro`)
+-   **Anthropic Claude** (e.g., `claude-3-opus-20240229`, `claude-3-sonnet-20240229`)
+-   **DeepSeek** (Coder and Chat models)
 
-## Core Structure
+The goal is to abstract the differences between these APIs, offering a single, consistent interface (`LlmClientInterface`) and Facade (`LaravelAi`) within your Laravel application.
 
-The core of the package is the `Bramato\LaravelAi\Contracts\LlmClientInterface` interface, which defines the contract for interacting with LLM providers. Data Transfer Objects (DTOs) are implemented using the [`wendelladriel/laravel-validated-dto`](https://github.com/WendellAdriel/laravel-validated-dto) package to ensure data consistency and validation.
+## Core Features
 
-```php
-namespace Bramato\LaravelAi\Contracts;
+-   Unified `chat()` method for all providers.
+-   Validated Data Transfer Objects (`ChatRequest`, `ChatResponse`) using [`wendelladriel/laravel-validated-dto`](https://github.com/WendellAdriel/laravel-validated-dto).
+-   Configurable default provider and provider-specific settings (API keys, models, options).
+-   Facade for easy access (`LaravelAi::chat(...)`).
+-   Support for chat history and system messages.
+-   JSON Mode for structured output (where supported by the provider).
+-   Custom exceptions for API errors.
 
-use Bramato\LaravelAi\DTOs\ChatRequest;
-use Bramato\LaravelAi\DTOs\ChatResponse;
+## Installation
 
-interface LlmClientInterface
-{
-    public function chat(ChatRequest $request): ChatResponse;
-}
-```
-
-The `ChatRequest` and `ChatResponse` DTOs handle the data structure for requests and responses:
-
-```php
-// src/DTOs/ChatRequest.php highlights
-class ChatRequest extends ValidatedDTO
-{
-    public string $prompt;
-    public ?string $systemMessage;
-    public array $history;
-    public array $options;
-    public bool $jsonMode;
-    // ... validation, defaults, casts ...
-}
-
-// src/DTOs/ChatResponse.php highlights
-class ChatResponse extends SimpleDTO
-{
-    public string $content;
-    public string $finishReason;
-    public string $model;
-    public string $id;
-    public ?array $usage;
-    public bool $isJson;
-    public mixed $decodedJsonContent;
-    public ?array $rawResponse;
-    // ... defaults, casts ...
-}
-```
-
-## Installation (TODO)
-
-You can install the package via composer:
+You can install the package via Composer:
 
 ```bash
 composer require bramato/laravel-ai
 ```
 
-## Configuration (TODO)
+The package utilizes Laravel's auto-discovery, so the Service Provider and Facade should be registered automatically.
 
-Publish the configuration file:
+## Configuration
 
-```bash
-php artisan vendor:publish --provider="Bramato\LaravelAi\LaravelAiServiceProvider" --tag="config"
+1.  **Publish the Configuration File:**
+
+    ```bash
+    php artisan vendor:publish --provider="Bramato\LaravelAi\LaravelAiServiceProvider" --tag="laravel-ai-config"
+    ```
+
+    This will create a `config/laravel-ai.php` file.
+
+2.  **Configure Environment Variables:**
+
+    Add the necessary API keys and desired default models to your `.env` file. The configuration file reads these values.
+
+    ```dotenv
+    # config/laravel-ai.php
+    LARAVEL_AI_DEFAULT_PROVIDER=openai
+
+    # OpenAI Configuration
+    OPENAI_API_KEY=your_openai_api_key
+    OPENAI_MODEL=gpt-4-turbo
+    # OPENAI_ORGANIZATION=your_openai_org_id (Optional)
+
+    # Gemini Configuration
+    GEMINI_API_KEY=your_gemini_api_key
+    GEMINI_MODEL=gemini-1.5-pro-latest
+    GEMINI_API_VERSION=v1beta # Recommended for full features like JSON mode
+
+    # Claude Configuration
+    CLAUDE_API_KEY=your_claude_api_key
+    CLAUDE_MODEL=claude-3-sonnet-20240229
+    CLAUDE_API_VERSION=2023-06-01 # Required by Claude
+
+    # DeepSeek Configuration
+    DEEPSEEK_API_KEY=your_deepseek_api_key
+    DEEPSEEK_MODEL=deepseek-chat
+    # DEEPSEEK_BASE_URI=https://api.deepseek.com/v1 (Default, if using OpenAI compatible endpoint)
+    ```
+
+3.  **Review `config/laravel-ai.php` (Optional):**
+
+    You can directly modify the `config/laravel-ai.php` file to:
+
+    -   Set the `default` provider.
+    -   Override environment variables.
+    -   Configure provider-specific `options` like `base_uri`, `timeout`, `version` (for Gemini/Claude), or API-specific parameters not covered by the DTO.
+
+## Usage
+
+You can interact with the LLM providers using either Dependency Injection or the Facade.
+
+### Using the Facade
+
+The simplest way is to use the `LaravelAi` facade.
+
+```php
+use Bramato\LaravelAi\Facades\LaravelAi;
+use Bramato\LaravelAi\DTOs\ChatRequest;
+
+// Simple prompt
+$request = new ChatRequest(['prompt' => 'Tell me a short story about a brave robot.']);
+$response = LaravelAi::chat($request);
+
+echo $response->content; // Get the main text content
+
+// With history and system message
+$requestWithHistory = new ChatRequest([
+    'prompt' => 'What was the robot\'s name?',
+    'systemMessage' => 'You are a storyteller.',
+    'history' => [
+        ['role' => 'user', 'content' => 'Tell me a short story about a brave robot.'],
+        ['role' => 'assistant', 'content' => 'Once upon a time, there was a robot named Bolt...'],
+    ],
+]);
+$responseWithHistory = LaravelAi::chat($requestWithHistory);
+echo $responseWithHistory->content;
+
+// Requesting JSON output
+$requestJson = new ChatRequest([
+    'prompt' => 'Provide user details in JSON format: {name: string, email: string}.',
+    'jsonMode' => true,
+]);
+$responseJson = LaravelAi::chat($requestJson);
+
+if ($responseJson->isJson) {
+    $userData = $responseJson->decodedJsonContent;
+    // $userData is now an associative array: ['name' => '...', 'email' => '...']
+    print_r($userData);
+} else {
+    // Handle cases where the LLM failed to return valid JSON
+    echo "Failed to get JSON response: " . $responseJson->content;
+}
+
+// Using a specific provider (overrides default)
+$geminiResponse = LaravelAi::provider('gemini')->chat(new ChatRequest(['prompt' => 'Hello from Gemini!']));
+echo $geminiResponse->content;
+
+$claudeResponse = LaravelAi::provider('claude')->chat(new ChatRequest(['prompt' => 'Hello from Claude!']));
+echo $claudeResponse->content;
 ```
 
-Set the API keys and other options in your `.env` file and/or `config/laravel-ai.php`.
+### Using Dependency Injection
 
-## Usage (TODO)
+You can also inject the `LlmClientInterface`.
 
 ```php
 use Bramato\LaravelAi\Contracts\LlmClientInterface;
 use Bramato\LaravelAi\DTOs\ChatRequest;
 
-// Via Dependency Injection
-$client = app(LlmClientInterface::class);
+class MyService
+{
+    public function __construct(private LlmClientInterface $llmClient)
+    {}
 
-$request = new ChatRequest(
-    prompt: 'What is the meaning of life?',
-    // Optional parameters:
-    // systemMessage: 'You are a helpful assistant.',
-    // history: [ ['role' => 'user', 'content' => 'Previous question'] ],
-    // options: ['temperature' => 0.7],
-    // jsonMode: false
-);
-
-$response = $client->chat($request);
-
-echo $response->content;
-
-// Via Facade (if configured)
-use Bramato\LaravelAi\Facades\LaravelAi;
-
-$responseViaFacade = LaravelAi::chat($request);
-echo $responseViaFacade->content;
+    public function askSomething(string $prompt): string
+    {
+        $request = new ChatRequest(['prompt' => $prompt]);
+        $response = $this->llmClient->chat($request);
+        return $response->content;
+    }
+}
 ```
 
-## Testing (TODO)
+### The `ChatRequest` DTO
+
+This DTO holds all the input parameters for the `chat` method. It uses `wendelladriel/laravel-validated-dto` for validation.
+
+-   `prompt` (string, required): The main user message/question.
+-   `systemMessage` (string, optional): Instructions for the AI's persona or behavior.
+-   `history` (array, optional): An array of previous messages for context. Each message should be an associative array with `role` (`user` or `assistant`) and `content` (string).
+    -   **Important:** History must alternate roles (user, assistant, user, ...). Claude enforces this strictly.
+-   `options` (array, optional): Provider-specific options like `temperature`, `max_tokens`, `top_p`, etc. Refer to the specific LLM provider's documentation for available options. The package attempts to map common options.
+-   `jsonMode` (bool, optional, default: `false`): If `true`, instructs the LLM to return a JSON response. See **Provider Notes** below.
+
+### The `ChatResponse` DTO
+
+This DTO holds the results from the `chat` method.
+
+-   `content` (string): The main text content of the response.
+-   `finishReason` (string): The reason the LLM stopped generating text (e.g., `stop`, `length`, `tool_calls`).
+-   `model` (string): The specific model ID that generated the response.
+-   `id` (string): A unique identifier for the chat interaction provided by the API (format varies by provider).
+-   `usage` (array, optional): Token usage information (e.g., `prompt_tokens`, `completion_tokens`, `total_tokens`). Structure may vary by provider.
+-   `isJson` (bool): Indicates if `jsonMode` was requested _and_ the `content` was successfully decoded as JSON.
+-   `decodedJsonContent` (mixed): If `isJson` is true, this holds the PHP associative array/value decoded from the JSON `content`. Otherwise, it's `null`.
+-   `rawResponse` (array, optional): The original, unprocessed response array from the provider's API for debugging or accessing non-standard data.
+
+### Handling Errors
+
+The package throws custom exceptions extending `\Exception` located in `Bramato\LaravelAi\Exceptions`:
+
+-   `LlmApiException`: General API errors (server errors, rate limits, bad requests).
+-   `AuthenticationException`: Errors related to invalid API keys or permissions (401, 403).
+-   `InvalidResponseException`: Errors when the API response is malformed or blocked (e.g., safety settings).
+
+You should wrap your `LaravelAi::chat()` calls in `try...catch` blocks to handle potential issues.
+
+```php
+try {
+    $response = LaravelAi::chat(new ChatRequest(['prompt' => $userPrompt]));
+    // Process response
+} catch (\Bramato\LaravelAi\Exceptions\AuthenticationException $e) {
+    Log::error("AI Authentication Failed: " . $e->getMessage());
+    // Handle auth error (e.g., notify admin)
+} catch (\Bramato\LaravelAi\Exceptions\LlmApiException $e) {
+    Log::error("AI API Error: " . $e->getMessage());
+    // Handle general API error (e.g., show user a message)
+} catch (\Throwable $e) {
+    Log::error("Unexpected AI Error: " . $e->getMessage());
+    // Handle unexpected errors
+}
+```
+
+## Provider Notes
+
+-   **JSON Mode:**
+    -   **OpenAI / DeepSeek:** Supported via the `response_format` parameter. Works best with models trained for JSON output.
+    -   **Gemini:** Supported via the `response_mime_type` parameter. Requires the `v1beta` API version (configurable in `laravel-ai.php` options or `GEMINI_API_VERSION` env var).
+    -   **Claude:** Does **not** have a dedicated API parameter. Setting `jsonMode: true` will make the package _attempt_ to parse the response as JSON, but you **must** explicitly instruct Claude to return JSON within your `prompt` or `systemMessage` for it to work reliably.
+-   **Claude Headers:** Requires `anthropic-version` header, which is handled automatically based on the `version` in the config options (defaults to `2023-06-01`).
+-   **Claude History:** Strictly requires alternating `user` and `assistant` roles in the `history` array.
+-   **Gemini History:** Also requires alternating roles.
+-   **System Prompts:** Implementation varies slightly. The package maps the `systemMessage` DTO property to the appropriate mechanism (`system` parameter for Claude, first message role for others).
+
+## Testing
+
+Run the test suite using Pest:
 
 ```bash
 composer test
 ```
+
+The tests use Laravel's `Http::fake()` to mock API responses and do not make real API calls.
 
 ## Changelog
 
@@ -125,7 +246,3 @@ Please review [our security policy](../../security/policy) on how to report secu
 ## License
 
 The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
-
-## Client Implementations
-
-The package uses the Strategy pattern, with concrete client implementations for each supported provider residing in the `src/Clients/` directory (e.g., `OpenAiClient.php`).

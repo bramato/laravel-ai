@@ -14,12 +14,27 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Throwable;
 
-
+/**
+ * Client implementation for interacting with DeepSeek's Chat API (often OpenAI-compatible).
+ */
 class DeepSeekClient implements LlmClientInterface
 {
+    /**
+     * The configured HTTP client instance.
+     */
     protected PendingRequest $httpClient;
+
+    /**
+     * The resolved API endpoint path (e.g., /chat/completions or /v1/chat/completions).
+     */
     protected string $apiEndpoint;
 
+    /**
+     * @param HttpClientFactory $httpFactory The Laravel HTTP client factory.
+     * @param string $apiKey The DeepSeek API key.
+     * @param string $model The default DeepSeek model ID to use for requests.
+     * @param array $options Additional configuration options (e.g., base_uri, timeout).
+     */
     public function __construct(
         protected HttpClientFactory $httpFactory,
         protected string $apiKey,
@@ -32,7 +47,9 @@ class DeepSeekClient implements LlmClientInterface
     }
 
     /**
-     * Configures the HTTP client with base URI and headers (similar to OpenAI).
+     * Configures the HTTP client with base URI and authentication.
+     *
+     * @return PendingRequest The configured HTTP client.
      */
     protected function configureHttpClient(): PendingRequest
     {
@@ -48,9 +65,11 @@ class DeepSeekClient implements LlmClientInterface
     }
 
     /**
-     * Determines the correct relative API endpoint path.
-     * If the base_uri already ends with /v1, use a relative path.
-     * Otherwise, use the full path.
+     * Determines the correct relative API endpoint path based on the configured base URI.
+     *
+     * Handles cases where the base URI might or might not include the '/v1' path segment.
+     *
+     * @return string The API endpoint path (e.g., '/chat/completions' or '/v1/chat/completions').
      */
     protected function determineApiEndpoint(): string
     {
@@ -60,8 +79,8 @@ class DeepSeekClient implements LlmClientInterface
             // Already configured with /v1, use relative path
             return '/chat/completions';
         } else {
-            // Base URI is likely just the domain, use full path (assuming v1)
-            // Or adjust if DeepSeek offers non-v1 endpoints via this client later
+            // Base URI is likely just the domain (e.g., https://api.deepseek.com),
+            // assume the standard v1 path needs to be appended.
             return '/v1/chat/completions';
         }
     }
@@ -70,9 +89,11 @@ class DeepSeekClient implements LlmClientInterface
     /**
      * Sends a chat request to the DeepSeek API.
      *
-     * @throws AuthenticationException
-     * @throws InvalidResponseException
-     * @throws LlmApiException
+     * @param ChatRequest $request The DTO containing the prompt, history, and options.
+     * @return ChatResponse The DTO containing the API response.
+     * @throws AuthenticationException If the API key is invalid (401).
+     * @throws InvalidResponseException If the API response structure is invalid.
+     * @throws LlmApiException For other API errors (rate limits, server errors, etc.).
      */
     public function chat(ChatRequest $request): ChatResponse
     {
@@ -81,12 +102,10 @@ class DeepSeekClient implements LlmClientInterface
         try {
             $response = $this->httpClient->post($this->apiEndpoint, $payload);
 
-            // Handle specific HTTP errors first before checking success
+            // Handle specific HTTP errors first
             if ($response->status() === 401) {
-                throw new AuthenticationException(
-                    $response->json('error.message', 'DeepSeek Authentication failed'),
-                    $response->status()
-                );
+                $errorMessage = $response->json('error.message', 'DeepSeek Authentication failed - Invalid API Key');
+                throw new AuthenticationException($errorMessage, $response->status());
             }
 
             if ($response->failed()) {
@@ -97,23 +116,35 @@ class DeepSeekClient implements LlmClientInterface
 
             // Validate structure AFTER checking for errors
             if (! $this->isValidResponseStructure($responseData)) {
+                // Check if it was an error response that somehow returned 200 OK
+                if (isset($responseData['error']['message'])) {
+                    $errorMessage = $responseData['error']['message'];
+                    $errorCode = $responseData['error']['code'] ?? 'unknown_error_code';
+                    throw new InvalidResponseException("Invalid response structure, received error details instead: ({$errorCode}) {$errorMessage}");
+                }
                 throw new InvalidResponseException('Invalid response structure received from DeepSeek API.');
             }
 
             return $this->mapResponseToDTO($responseData, $request->jsonMode);
         } catch (RequestException $e) {
+            // Handles connection errors or other client-side request issues
             throw new LlmApiException("HTTP Request Error calling DeepSeek API: {$e->getMessage()}", $e->getCode(), $e);
         } catch (Throwable $e) {
-            // Rethrow our own exceptions, wrap others
+            // Rethrow our own exceptions, wrap others for clarity
             if ($e instanceof LlmApiException || $e instanceof AuthenticationException || $e instanceof InvalidResponseException) {
                 throw $e;
             }
-            throw new LlmApiException("An unexpected error occurred calling DeepSeek API: {$e->getMessage()}", $e->getCode(), $e);
+            // Wrap unexpected errors
+            throw new LlmApiException("An unexpected error occurred during DeepSeek API interaction: {$e->getMessage()}", $e->getCode(), $e);
         }
     }
 
     /**
-     * Builds the payload for the DeepSeek API request (similar to OpenAI).
+     * Builds the payload array for the DeepSeek Chat API request.
+     * (Assumes OpenAI compatibility in structure).
+     *
+     * @param ChatRequest $request The request DTO.
+     * @return array The payload ready for JSON encoding.
      */
     protected function buildPayload(ChatRequest $request): array
     {
@@ -122,33 +153,44 @@ class DeepSeekClient implements LlmClientInterface
             'messages' => [],
         ];
 
+        // Add system message if provided
         if ($request->systemMessage) {
             $payload['messages'][] = ['role' => 'system', 'content' => $request->systemMessage];
         }
 
+        // Add history messages
         foreach ($request->history as $message) {
-            if (isset($message['role'], $message['content'])) {
-                $payload['messages'][] = ['role' => $message['role'], 'content' => $message['content']];
-            }
+            // DTO validation ensures role/content exist
+            $payload['messages'][] = ['role' => $message['role'], 'content' => $message['content']];
         }
 
+        // Add the main user prompt
         $payload['messages'][] = ['role' => 'user', 'content' => $request->prompt];
 
+        // Add allowed options from the request DTO
         if (!empty($request->options)) {
-            // Assuming DeepSeek uses the same options as OpenAI
-            $allowedOptions = ['temperature', 'max_tokens', 'top_p', 'frequency_penalty', 'presence_penalty', 'stop', 'seed', 'stream']; // Added stream
+            // Assuming DeepSeek supports the same options as OpenAI. Verify with DeepSeek docs if needed.
+            $allowedOptions = ['temperature', 'max_tokens', 'top_p', 'frequency_penalty', 'presence_penalty', 'stop', 'seed', 'stream'];
             $payload += array_intersect_key($request->options, array_flip($allowedOptions));
         }
 
+        // Handle JSON mode parameter
         if ($request->jsonMode) {
+            // Assumes DeepSeek supports OpenAI-style JSON mode
             $payload['response_format'] = ['type' => 'json_object'];
+            // Note: The user MUST ensure the prompt instructs the model to output JSON.
         }
 
         return $payload;
     }
 
     /**
-     * Maps the successful DeepSeek API response to the ChatResponse DTO (similar to OpenAI).
+     * Maps the successful DeepSeek API response data array to the ChatResponse DTO.
+     * (Assumes OpenAI compatibility in structure).
+     *
+     * @param array $responseData The decoded JSON response data from the API.
+     * @param bool $wasJsonModeRequested Indicates if the original request asked for JSON.
+     * @return ChatResponse The populated response DTO.
      */
     protected function mapResponseToDTO(array $responseData, bool $wasJsonModeRequested): ChatResponse
     {
@@ -156,47 +198,62 @@ class DeepSeekClient implements LlmClientInterface
         $content = $responseData['choices'][0]['message']['content'] ?? '';
         $decodedJson = null;
 
-        if ($wasJsonModeRequested) {
+        // Attempt to decode content if JSON mode was requested
+        if ($wasJsonModeRequested && !empty($content)) {
             $decoded = json_decode($content, true);
             if (json_last_error() === JSON_ERROR_NONE) {
                 $decodedJson = $decoded;
             }
+            // If decoding fails, $decodedJson remains null, $content holds the raw string.
         }
 
         return new ChatResponse(
-            $content,
+            $content, // Raw content string (might be JSON)
             $responseData['choices'][0]['finish_reason'] ?? 'unknown',
             $responseData['model'] ?? $this->model,
             $responseData['id'] ?? 'unknown',
             $responseData['usage'] ?? null,
-            $wasJsonModeRequested,
-            $decodedJson,
-            $responseData
+            $wasJsonModeRequested && ($decodedJson !== null), // isJson true only if requested AND decoded
+            $decodedJson, // Decoded array/value or null
+            $responseData // Original raw response
         );
     }
 
     /**
-     * Handles non-successful HTTP responses.
+     * Handles non-successful (non-401) HTTP responses from DeepSeek.
      *
-     * @throws LlmApiException
+     * @param Response $response The failed HTTP response.
+     * @throws LlmApiException Mapped API error.
      */
     protected function handleErrorResponse(Response $response): void
     {
         $statusCode = $response->status();
-        $errorData = $response->json('error');
-        $errorMessage = is_array($errorData) && isset($errorData['message']) ? $errorData['message'] : $response->body();
-        $errorCode = is_array($errorData) && isset($errorData['code']) ? $errorData['code'] : $statusCode;
+        $errorData = $response->json('error'); // Attempt to get structured error
+
+        $errorMessage = 'Unknown DeepSeek API Error';
+        $errorCode = $statusCode; // Default to HTTP status code
+
+        if (is_array($errorData)) {
+            $errorMessage = $errorData['message'] ?? $response->body();
+            $errorCode = $errorData['code'] ?? $statusCode;
+        }
 
         // Assuming DeepSeek uses similar error codes/structure to OpenAI
         match ($statusCode) {
             // 401 is handled in the main chat method
-            429 => throw new LlmApiException("DeepSeek API Error - Rate Limit Exceeded ({$errorCode}): {$errorMessage}", $statusCode), // Consider RateLimitException
+            429 => throw new LlmApiException("DeepSeek API Error - Rate Limit Exceeded ({$errorCode}): {$errorMessage}", $statusCode),
+            400 => throw new LlmApiException("DeepSeek API Error - Bad Request ({$errorCode}): {$errorMessage}", $statusCode),
+            500 => throw new LlmApiException("DeepSeek API Error - Internal Server Error ({$errorCode}): {$errorMessage}", $statusCode),
             default => throw new LlmApiException("DeepSeek API Error ({$errorCode}, status:{$statusCode}): {$errorMessage}", $statusCode),
         };
     }
 
     /**
-     * Validates the basic structure of the DeepSeek response (assuming OpenAI compatibility).
+     * Validates the basic structure of a successful DeepSeek response array.
+     * (Assumes OpenAI compatibility).
+     *
+     * @param array|null $responseData The decoded JSON data from the response.
+     * @return bool True if the structure seems valid for a successful response, false otherwise.
      */
     protected function isValidResponseStructure(?array $responseData): bool
     {
@@ -208,6 +265,6 @@ class DeepSeekClient implements LlmClientInterface
         return isset($responseData['id'], $responseData['model'], $responseData['choices']) &&
             is_array($responseData['choices']) &&
             count($responseData['choices']) > 0 &&
-            isset($responseData['choices'][0]['message']['content']);
+            isset($responseData['choices'][0]['message'], $responseData['choices'][0]['message']['content']); // Check nested content
     }
 }

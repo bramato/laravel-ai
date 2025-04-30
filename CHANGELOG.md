@@ -20,3 +20,4 @@
 -   Added feature tests for `GeminiClient` (success, errors, safety blocks, JSON mode) using Http::fake().
 -   Implemented `ClaudeClient` logic (headers, payload, max_tokens, system prompt, message validation, response parsing, error handling).
 -   Added feature tests for `ClaudeClient` (success, errors, system prompt, message validation, JSON mode flag) using Http::fake().
+-   Added dedicated feature tests for JSON mode handling across all providers.

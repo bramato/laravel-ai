@@ -9,11 +9,8 @@ use Bramato\LaravelAi\Exceptions\AuthenticationException;
 use Bramato\LaravelAi\Exceptions\InvalidResponseException;
 use Bramato\LaravelAi\Exceptions\LlmApiException;
 use Bramato\LaravelAi\Facades\LaravelAi; // Use the Facade as well
-use Bramato\LaravelAi\Tests\TestCase;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
-
-uses(TestCase::class);
 
 // --- Helper function to set up common fake data ---
 function getFakeSuccessResponseData(string $id = 'chatcmpl-123', string $model = 'gpt-test', string $content = '\n\nHello there!'): array
@@ -660,6 +657,164 @@ group('claude', function () {
 
         // No specific API parameter to check for JSON mode, unlike OpenAI/Gemini
         Http::assertSentCount(1);
+    });
+});
+
+// --- JSON Mode Tests ---
+group('json-mode', function () {
+    $jsonContentString = json_encode(['status' => 'success', 'data' => ['item1', 'item2']]);
+    $parsedJson = json_decode($jsonContentString, true);
+
+    // OpenAI JSON Mode Test
+    it('handles OpenAI JSON mode correctly', function () use ($jsonContentString, $parsedJson) {
+        config()->set('laravel-ai.default', 'openai');
+        config()->set('laravel-ai.providers.openai.api_key', 'test-openai-key');
+        config()->set('laravel-ai.providers.openai.model', 'gpt-json-test');
+        config()->set('laravel-ai.providers.openai.options.base_uri', 'https://api.openai.com/v1');
+
+        $fakeResponse = getFakeSuccessResponseData('json-oai-123', 'gpt-json-test', $jsonContentString);
+        Http::fake([
+            'api.openai.com/v1/chat/completions' => Http::response($fakeResponse, 200),
+        ]);
+
+        $client = app(LlmClientInterface::class);
+        $request = new ChatRequest(['prompt' => 'Return JSON', 'jsonMode' => true]);
+        $response = $client->chat($request);
+
+        expect($response->isJson)->toBeTrue()
+            ->and($response->decodedJsonContent)->toBe($parsedJson)
+            ->and($response->content)->toBe($jsonContentString);
+
+        Http::assertSent(function ($httpRequest) {
+            return isset($httpRequest->data()['response_format']) &&
+                $httpRequest->data()['response_format'] === ['type' => 'json_object'];
+        });
+    });
+
+    // DeepSeek JSON Mode Test
+    it('handles DeepSeek JSON mode correctly', function () use ($jsonContentString, $parsedJson) {
+        config()->set('laravel-ai.default', 'deepseek');
+        config()->set('laravel-ai.providers.deepseek.api_key', 'test-deepseek-key');
+        config()->set('laravel-ai.providers.deepseek.model', 'deepseek-json-test');
+        config()->set('laravel-ai.providers.deepseek.options', []); // Use default base_uri (ends in /v1)
+
+        $fakeResponse = getFakeSuccessResponseData('json-ds-123', 'deepseek-json-test', $jsonContentString);
+        Http::fake([
+            'api.deepseek.com/v1/chat/completions' => Http::response($fakeResponse, 200),
+        ]);
+
+        $client = app(LlmClientInterface::class);
+        $request = new ChatRequest(['prompt' => 'Return JSON', 'jsonMode' => true]);
+        $response = $client->chat($request);
+
+        expect($response->isJson)->toBeTrue()
+            ->and($response->decodedJsonContent)->toBe($parsedJson)
+            ->and($response->content)->toBe($jsonContentString);
+
+        Http::assertSent(function ($httpRequest) {
+            return isset($httpRequest->data()['response_format']) &&
+                $httpRequest->data()['response_format'] === ['type' => 'json_object'];
+        });
+    });
+
+    // Gemini JSON Mode Test
+    it('handles Gemini JSON mode correctly', function () use ($jsonContentString, $parsedJson) {
+        $apiVersion = 'v1beta';
+        $model = 'gemini-json-test';
+        $apiKey = 'test-gemini-key';
+        $baseUri = 'https://generativelanguage.googleapis.com';
+        $fullApiUrlPattern = "{$baseUri}/{$apiVersion}/models/{$model}:generateContent?key={$apiKey}";
+
+        config()->set('laravel-ai.default', 'gemini');
+        config()->set('laravel-ai.providers.gemini.api_key', $apiKey);
+        config()->set('laravel-ai.providers.gemini.model', $model);
+        config()->set('laravel-ai.providers.gemini.options', ['version' => $apiVersion]); // MUST be v1beta
+
+        $fakeResponse = getFakeGeminiSuccessResponse($jsonContentString);
+        Http::fake([
+            $fullApiUrlPattern => Http::response($fakeResponse, 200),
+        ]);
+
+        $client = app(LlmClientInterface::class);
+        $request = new ChatRequest(['prompt' => 'Return JSON', 'jsonMode' => true]);
+        $response = $client->chat($request);
+
+        expect($response->isJson)->toBeTrue()
+            ->and($response->decodedJsonContent)->toBe($parsedJson)
+            ->and($response->content)->toBe($jsonContentString);
+
+        Http::assertSent(function ($httpRequest) use ($fullApiUrlPattern) {
+            return $httpRequest->url() === $fullApiUrlPattern &&
+                isset($httpRequest->data()['generationConfig']['response_mime_type']) &&
+                $httpRequest->data()['generationConfig']['response_mime_type'] === 'application/json';
+        });
+    });
+
+    // Claude JSON Mode Test (relies on prompt)
+    it('handles Claude JSON mode flag correctly (parsing response)', function () use ($jsonContentString, $parsedJson) {
+        $apiVersion = '2023-06-01';
+        $model = 'claude-json-test';
+        $apiKey = 'test-claude-key';
+        $baseUri = 'https://api.anthropic.com/v1';
+        $endpoint = "{$baseUri}/messages";
+
+        config()->set('laravel-ai.default', 'claude');
+        config()->set('laravel-ai.providers.claude.api_key', $apiKey);
+        config()->set('laravel-ai.providers.claude.model', $model);
+        config()->set('laravel-ai.providers.claude.options', [
+            'version' => $apiVersion,
+            'base_uri' => $baseUri,
+        ]);
+
+        $fakeResponse = getFakeClaudeSuccessResponse(content: $jsonContentString);
+        Http::fake([
+            $endpoint => Http::response($fakeResponse, 200),
+        ]);
+
+        $client = app(LlmClientInterface::class);
+        // jsonMode is true, but Claude client doesn't send a specific parameter
+        $request = new ChatRequest(['prompt' => 'Return JSON', 'jsonMode' => true]);
+        $response = $client->chat($request);
+
+        // We expect the client to *attempt* parsing because jsonMode was true
+        expect($response->isJson)->toBeTrue()
+            ->and($response->decodedJsonContent)->toBe($parsedJson)
+            ->and($response->content)->toBe($jsonContentString);
+
+        // Assert no specific JSON mode parameter was sent for Claude
+        Http::assertSent(function ($httpRequest) {
+            return !isset($httpRequest->data()['response_format']) &&
+                (!isset($httpRequest->data()['generationConfig']) || !isset($httpRequest->data()['generationConfig']['response_mime_type']));
+        });
+    });
+
+    // Test handling of non-JSON response when JSON was requested (e.g., OpenAI fails)
+    it('handles non-JSON response when JSON mode was requested', function () {
+        config()->set('laravel-ai.default', 'openai');
+        config()->set('laravel-ai.providers.openai.api_key', 'test-openai-key');
+        config()->set('laravel-ai.providers.openai.model', 'gpt-json-fail-test');
+        config()->set('laravel-ai.providers.openai.options.base_uri', 'https://api.openai.com/v1');
+
+        $nonJsonContent = "I cannot provide JSON for this request.";
+        $fakeResponse = getFakeSuccessResponseData('json-fail-123', 'gpt-json-fail-test', $nonJsonContent);
+        Http::fake([
+            'api.openai.com/v1/chat/completions' => Http::response($fakeResponse, 200),
+        ]);
+
+        $client = app(LlmClientInterface::class);
+        $request = new ChatRequest(['prompt' => 'Return JSON', 'jsonMode' => true]);
+        $response = $client->chat($request);
+
+        // Expect isJson to be false and decoded content null because parsing failed
+        expect($response->isJson)->toBeFalse()
+            ->and($response->decodedJsonContent)->toBeNull()
+            ->and($response->content)->toBe($nonJsonContent);
+
+        // Still assert the request parameter was sent
+        Http::assertSent(function ($httpRequest) {
+            return isset($httpRequest->data()['response_format']) &&
+                $httpRequest->data()['response_format'] === ['type' => 'json_object'];
+        });
     });
 });
 
