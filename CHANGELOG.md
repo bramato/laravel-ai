@@ -2,6 +2,21 @@
 
 All notable changes to `bramato/laravel-ai` will be documented in this file.
 
+## [1.1.0] - 2025-XX-XX
+
+### Added
+
+-   **LlmModel Eloquent Model:** Introduced `Bramato\LaravelAi\Models\LlmModel` using `calebporzio/sushi` to list available LLM models and their capabilities (`provider`, `model_id`, `context_window`, `json_mode`, `supports_vision`, `max_output_tokens`).
+-   **ChatService:** Added `Bramato\LaravelAi\Services\ChatService` for managing stateful multi-turn conversations.
+    -   Handles internal history management.
+    -   Static `create()` method for easy session initialization.
+    -   Supports setting provider/model via `LlmModel` instance for the session.
+    -   Improved JSON mode handling via `jsonData` parameter in `create()` (supports boolean, array schema, or JSON string schema).
+    -   Includes helper methods (`getHistory`, `setProvider`, `setModel`, `setOptions`, `clearHistory`).
+-   Feature tests for `LlmModel` (`tests/Unit/LlmModelTest.php`).
+-   Feature tests for `ChatService` (`tests/Feature/ChatServiceTest.php`) using Mockery.
+-   Documentation sections in `README.md` for `LlmModel` and `ChatService`.
+
 ## [1.0.0] - 2025-XX-XX
 
 ### Added

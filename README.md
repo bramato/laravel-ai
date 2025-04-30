@@ -262,6 +262,114 @@ if ($gpt4o) {
 
 This can be useful for dynamically presenting model options to users or for making decisions within your application based on model capabilities. The model data is based on research at the time of release and may evolve.
 
+## Chat Service (Stateful Conversations)
+
+Introduced in v1.1, the `Bramato\LaravelAi\Services\ChatService` provides a convenient way to manage multi-turn conversations with an LLM while maintaining the conversation state (history, system message, selected model, options).
+
+Instead of manually passing the history back and forth in `ChatRequest`, the `ChatService` handles it internally.
+
+### Getting Started
+
+You initiate a chat session using the static `create` method. This resolves an instance of the service from the container and sets up the initial state.
+
+```php
+use Bramato\LaravelAi\Services\ChatService;
+use Bramato\LaravelAi\Models\LlmModel;
+
+// Start a simple chat
+$chat = ChatService::create(initialPrompt: 'Explain the concept of dependency injection.');
+
+// Get the first response (history is managed internally)
+$response1 = $chat->getResponse();
+echo "Assistant: " . $response1->content . "\n";
+
+// Add another user message
+$chat->addMessage('user', 'Can you give me a simple PHP example?');
+
+// Get the second response (sends the full history: user, assistant, user)
+$response2 = $chat->getResponse();
+echo "Assistant: " . $response2->content . "\n";
+
+// Access the full history
+print_r($chat->getHistory());
+/*
+Output might look like:
+Array
+(
+    [0] => Array
+        (
+            [role] => user
+            [content] => Explain the concept of dependency injection.
+        )
+    [1] => Array
+        (
+            [role] => assistant
+            [content] => Dependency injection (DI) is a design pattern...
+        )
+    [2] => Array
+        (
+            [role] => user
+            [content] => Can you give me a simple PHP example?
+        )
+    [3] => Array
+        (
+            [role] => assistant
+            [content] => Sure! Consider a Logger class...
+        )
+)
+*/
+```
+
+### `ChatService::create()` Parameters
+
+The `create` method accepts several parameters to configure the session:
+
+-   `string $initialPrompt`: (Required) The first message from the user to start the conversation.
+-   `?string $systemMessage = null`: An optional system message to guide the AI's behavior throughout the session.
+-   `?LlmModel $llmModel = null`: An optional `LlmModel` instance. If provided, the service will use the provider and model specified in this object for the entire session, overriding the default configuration. This is useful for ensuring a specific model or provider is used for a particular chat thread.
+-   `array $options = []`: Optional provider-specific options (like `temperature`) to apply to all requests within this session. These merge with and override default configuration options.
+-   `mixed $jsonData = null`: Controls JSON mode for the session (overrides `jsonMode` in `ChatRequest`):
+    -   `null` or `false`: JSON mode is disabled.
+    -   `true`: Enables JSON mode (telling the underlying client to request JSON).
+    -   `array`: Enables JSON mode and appends a JSON representation of the array to the `initialPrompt` as a structure/schema example for the LLM.
+    -   `string`: Enables JSON mode. If the string is valid JSON, it's appended to the `initialPrompt` as a structure/schema example.
+
+Example with more options:
+
+```php
+$claudeHaiku = LlmModel::where('model_id', 'claude-3-haiku-20240307')->first();
+
+$jsonSchema = ['item' => 'string', 'quantity' => 'integer', 'notes' => 'string|null'];
+
+$chat = ChatService::create(
+    initialPrompt: 'Parse the following order: 2 apples, 1 banana, special instructions: organic.',
+    systemMessage: 'You are an order parsing assistant. Respond ONLY in JSON format.',
+    llmModel: $claudeHaiku, // Use Claude Haiku for this chat
+    options: ['temperature' => 0.3],
+    jsonData: $jsonSchema // Request JSON output matching this structure
+);
+
+$response = $chat->getResponse();
+
+if ($response->isJson) {
+    print_r($response->decodedJsonContent);
+} else {
+    echo "Failed to get JSON: " . $response->content;
+}
+```
+
+### Additional Methods
+
+The `ChatService` instance provides helper methods to inspect or modify the session state after creation:
+
+-   `getHistory(): array`: Returns the current conversation history.
+-   `setProvider(string $provider): self`: Overrides the provider for subsequent requests in the session.
+-   `setModel(string $model): self`: Overrides the model for subsequent requests.
+-   `setOptions(array $options, bool $merge = false): self`: Sets or merges options for subsequent requests.
+-   `clearHistory(): self`: Clears the internal conversation history.
+
+These methods allow for dynamic adjustments during a longer conversation if needed.
+
 ## Testing
 
 Run the test suite using Pest:

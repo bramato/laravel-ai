@@ -7,6 +7,7 @@ use Bramato\LaravelAi\Clients\DeepSeekClient;
 use Bramato\LaravelAi\Clients\GeminiClient;
 use Bramato\LaravelAi\Clients\OpenAiClient;
 use Bramato\LaravelAi\Contracts\LlmClientInterface;
+use Bramato\LaravelAi\Services\ChatService;
 use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Http\Client\Factory as HttpClientFactory;
 use Illuminate\Support\ServiceProvider;
@@ -115,6 +116,11 @@ class LaravelAiServiceProvider extends ServiceProvider implements DeferrableProv
 
         // Alias the interface binding for potential use with the Facade or direct resolution.
         $this->app->alias(LlmClientInterface::class, 'laravel-ai');
+
+        // Bind the ChatService (not as a singleton)
+        $this->app->bind(ChatService::class, function ($app) {
+            return new ChatService($app->make(LlmClientInterface::class));
+        });
     }
 
     /**
