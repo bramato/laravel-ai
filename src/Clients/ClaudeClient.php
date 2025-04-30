@@ -5,15 +5,21 @@ namespace Bramato\LaravelAi\Clients;
 use Bramato\LaravelAi\Contracts\LlmClientInterface;
 use Bramato\LaravelAi\DTOs\ChatRequest;
 use Bramato\LaravelAi\DTOs\ChatResponse;
+use Bramato\LaravelAi\Exceptions\AuthenticationException;
+use Bramato\LaravelAi\Exceptions\InvalidResponseException;
+use Bramato\LaravelAi\Exceptions\LlmApiException;
 use Illuminate\Http\Client\Factory as HttpClientFactory;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
-// use Bramato\LaravelAi\Exceptions\LlmApiException;
-// use Bramato\LaravelAi\Exceptions\AuthenticationException;
+use Illuminate\Http\Client\Response;
+use InvalidArgumentException;
+use Throwable;
 
 class ClaudeClient implements LlmClientInterface
 {
     protected PendingRequest $httpClient;
+    protected string $apiVersion;
+    protected const DEFAULT_MAX_TOKENS = 1024;
 
     public function __construct(
         protected HttpClientFactory $httpFactory,
@@ -21,31 +27,32 @@ class ClaudeClient implements LlmClientInterface
         protected string $model,
         protected array $options = []
     ) {
+        $this->apiVersion = $this->options['version'] ?? '2023-06-01'; // Required by Claude
         $this->httpClient = $this->configureHttpClient();
     }
 
     /**
      * Configures the HTTP client with base URI and required Claude headers.
+     *
+     * @throws AuthenticationException
      */
     protected function configureHttpClient(): PendingRequest
     {
         $baseUri = $this->options['base_uri'] ?? 'https://api.anthropic.com/v1';
-        $timeout = $this->options['timeout'] ?? 30;
-        $apiVersion = $this->options['version'] ?? '2023-06-01'; // Required by Claude
+        $timeout = $this->options['timeout'] ?? 60;
 
         if (empty($this->apiKey)) {
-            // TODO: Throw AuthenticationException
-            throw new \InvalidArgumentException('Claude API Key is missing.');
+            throw new AuthenticationException('Claude API Key is missing. Please configure it in laravel-ai.php or .env.');
         }
-        if (empty($apiVersion)) {
-            // TODO: Throw LlmApiException or InvalidArgumentException
-            throw new \InvalidArgumentException('Claude API Version (anthropic-version header) is missing.');
+        if (empty($this->apiVersion)) {
+            // Should not happen with default, but good practice
+            throw new InvalidArgumentException('Claude API Version (anthropic-version header) is missing. Please configure it in laravel-ai.php options.');
         }
 
         return $this->httpFactory->baseUrl($baseUri)
             ->withHeaders([
                 'x-api-key' => $this->apiKey,
-                'anthropic-version' => $apiVersion,
+                'anthropic-version' => $this->apiVersion,
             ])
             ->acceptJson()
             ->contentTypeJson() // Claude expects application/json
@@ -55,35 +62,57 @@ class ClaudeClient implements LlmClientInterface
     /**
      * Sends a chat request to the Claude API.
      *
-     * @param ChatRequest $request The DTO containing the request data.
-     * @return ChatResponse The DTO containing the model's response.
-     * @throws \Bramato\LaravelAi\Exceptions\LlmApiException On API errors.
-     * @throws RequestException
+     * @throws AuthenticationException
+     * @throws InvalidResponseException
+     * @throws LlmApiException
      */
     public function chat(ChatRequest $request): ChatResponse
     {
-        // TODO: Implement Claude API call logic
-        // 1. Prepare request payload (messages, model, max_tokens, options)
-        // 2. Make POST request to /messages endpoint
-        // 3. Handle potential RequestException
-        // 4. Parse the response
-        // 5. Handle API errors
-        // 6. Map successful response to ChatResponse DTO
-
         $payload = $this->buildPayload($request);
 
         try {
             $response = $this->httpClient->post('/messages', $payload);
 
-            if (! $response->successful()) {
-                // TODO: Throw custom exception
-                $response->throw();
+            // Handle specific HTTP errors
+            if ($response->status() === 401) {
+                throw new AuthenticationException(
+                    $response->json('error.message', 'Claude Authentication failed - Invalid API Key'),
+                    $response->status()
+                );
+            }
+            if ($response->status() === 403) {
+                // Could be permissions or other issues
+                throw new AuthenticationException(
+                    $response->json('error.message', 'Claude Forbidden - Check Permissions or Request'),
+                    $response->status()
+                );
             }
 
-            return $this->mapResponseToDTO($response->json() ?? [], $request->jsonMode);
+            if ($response->failed()) {
+                $this->handleErrorResponse($response);
+            }
+
+            $responseData = $response->json();
+
+            if (! $this->isValidResponseStructure($responseData)) {
+                // Claude might return error details even with 200 OK sometimes
+                if (isset($responseData['error']['type'])) {
+                    $errorType = $responseData['error']['type'];
+                    $errorMessage = $responseData['error']['message'] ?? 'Unknown error detail';
+                    throw new InvalidResponseException("Invalid response structure, potential API error ({$errorType}): {$errorMessage}");
+                }
+                throw new InvalidResponseException('Invalid response structure received from Claude API.');
+            }
+
+            return $this->mapResponseToDTO($responseData, $request->jsonMode);
         } catch (RequestException $e) {
-            // TODO: Wrap the exception
-            throw $e;
+            throw new LlmApiException("HTTP Request Error calling Claude API: {$e->getMessage()}", $e->getCode(), $e);
+        } catch (Throwable $e) {
+            // Rethrow our own exceptions, wrap others
+            if ($e instanceof LlmApiException || $e instanceof AuthenticationException || $e instanceof InvalidResponseException) {
+                throw $e;
+            }
+            throw new LlmApiException("An unexpected error occurred calling Claude API: {$e->getMessage()}", $e->getCode(), $e);
         }
     }
 
@@ -92,36 +121,50 @@ class ClaudeClient implements LlmClientInterface
      */
     protected function buildPayload(ChatRequest $request): array
     {
-        // TODO: Refine payload building, handle options correctly
         $payload = [
             'model' => $this->model,
             'messages' => [],
             // 'max_tokens' is required by Claude API
-            'max_tokens' => $request->options['max_tokens'] ?? 1024, // Default value, make configurable?
+            'max_tokens' => (int) ($request->options['max_tokens'] ?? self::DEFAULT_MAX_TOKENS),
         ];
 
-        // Note: Claude doesn't have a dedicated 'system' role like OpenAI.
-        // System prompts should be placed before the first 'user' message if needed,
-        // or potentially using the 'system' parameter if available in the API version.
+        // Handle system prompt (if provided)
         if ($request->systemMessage) {
-            // Option 1: Prepend as a message (check Claude docs for best practice)
-            // $payload['messages'][] = ['role' => 'user', 'content' => 'System Instruction: '.$request->systemMessage];
-            // Option 2: Use 'system' parameter if supported
-            // $payload['system'] = $request->systemMessage;
-            // For now, let's assume system messages are handled by the user within history/prompt.
+            // The 'system' parameter is the recommended way
+            $payload['system'] = $request->systemMessage;
         }
 
         // Add history messages (user/assistant)
-        foreach ($request->history as $message) {
-            if (isset($message['role'], $message['content']) && in_array($message['role'], ['user', 'assistant'])) {
-                $payload['messages'][] = ['role' => $message['role'], 'content' => $message['content']];
+        // Ensure alternating roles, starting with user if system prompt wasn't used.
+        $lastRole = null;
+        if (empty($request->history) && !isset($payload['system'])) {
+            // If no history and no system prompt, the main prompt is the first user message.
+            // Handled below.
+        } else {
+            foreach ($request->history as $message) {
+                if (isset($message['role'], $message['content']) && in_array($message['role'], ['user', 'assistant'])) {
+                    // Ensure roles alternate (Claude strict requirement)
+                    if ($lastRole !== null && $lastRole === $message['role']) {
+                        // Option 1: Throw error
+                        throw new LlmApiException("Invalid message sequence for Claude: Consecutive messages from role '{$message['role']}'. History must alternate roles.", 400);
+                        // Option 2: Try to merge? Risky, could break context.
+                        // Option 3: Insert dummy message? Also risky.
+                        // Let's throw for now, user should provide correct history.
+                    }
+                    $payload['messages'][] = ['role' => $message['role'], 'content' => $message['content']];
+                    $lastRole = $message['role'];
+                }
+            }
+            // Validate role alternation with the upcoming main prompt
+            if ($lastRole === 'user') {
+                throw new LlmApiException('Invalid message sequence for Claude: Last message in history cannot be from \'user\'.', 400);
             }
         }
 
         // Add the main prompt (must be 'user' role)
         $payload['messages'][] = ['role' => 'user', 'content' => $request->prompt];
 
-        // Add other allowed options (e.g., temperature, top_p, top_k, stop_sequences)
+        // Add other allowed options
         if (!empty($request->options)) {
             $allowedOptions = ['temperature', 'top_p', 'top_k', 'stop_sequences'];
             $payload += array_intersect_key($request->options, array_flip($allowedOptions));
@@ -130,13 +173,13 @@ class ClaudeClient implements LlmClientInterface
         // Claude does not have a specific 'json_mode' parameter.
         // Achieving JSON output relies on prompt engineering.
         if ($request->jsonMode) {
-            // We might want to modify the prompt here or log a warning,
-            // as just setting jsonMode=true won't enforce JSON for Claude.
+            // Optionally, log a warning or modify prompt here if desired.
+            // logger()->warning('Claude does not support a dedicated JSON mode parameter. Ensure your prompt requests JSON output.');
         }
 
-        // Ensure max_tokens is set (either from options or default)
-        if (!isset($payload['max_tokens'])) {
-            $payload['max_tokens'] = 1024; // Fallback default
+        // Ensure max_tokens is always set and is an integer
+        if (!isset($payload['max_tokens']) || !is_int($payload['max_tokens'])) {
+            $payload['max_tokens'] = self::DEFAULT_MAX_TOKENS;
         }
 
         return $payload;
@@ -147,30 +190,86 @@ class ClaudeClient implements LlmClientInterface
      */
     protected function mapResponseToDTO(array $responseData, bool $wasJsonModeRequested): ChatResponse
     {
-        // TODO: Refine mapping based on Claude's exact response structure
         // Claude response: `content` is an array, usually with one text block.
         $content = '';
         if (isset($responseData['content']) && is_array($responseData['content']) && isset($responseData['content'][0]['text'])) {
-            $content = $responseData['content'][0]['text'];
+            // Concatenate text from all content blocks if there are multiple (though usually just one for non-streaming)
+            foreach ($responseData['content'] as $block) {
+                if ($block['type'] === 'text') {
+                    $content .= $block['text'];
+                }
+            }
         }
 
         $decodedJson = null;
-        if ($wasJsonModeRequested) {
+        if ($wasJsonModeRequested && !empty($content)) {
+            // Attempt to decode if JSON mode was requested via prompt
             $decoded = json_decode($content, true);
             if (json_last_error() === JSON_ERROR_NONE) {
                 $decodedJson = $decoded;
             }
+            // else: $decodedJson remains null, $content holds the raw string
         }
 
         return new ChatResponse(
-            content: $content,
-            finishReason: $responseData['stop_reason'] ?? 'unknown',
-            model: $responseData['model'] ?? $this->model,
-            id: $responseData['id'] ?? 'unknown',
-            usage: $responseData['usage'] ?? null, // Claude provides usage {input_tokens, output_tokens}
-            isJson: $wasJsonModeRequested,
-            decodedJsonContent: $decodedJson,
-            rawResponse: $responseData
+            $content,
+            $responseData['stop_reason'] ?? 'unknown',
+            $responseData['model'] ?? $this->model,
+            $responseData['id'] ?? 'unknown', // Claude provides an ID
+            $responseData['usage'] ?? null, // Claude provides usage {input_tokens, output_tokens}
+            $wasJsonModeRequested && ($decodedJson !== null),
+            $decodedJson,
+            $responseData
         );
+    }
+
+    /**
+     * Handles non-successful HTTP responses from Claude.
+     *
+     * @throws LlmApiException
+     */
+    protected function handleErrorResponse(Response $response): void
+    {
+        $statusCode = $response->status();
+        $errorData = $response->json('error');
+
+        $errorMessage = 'Unknown Claude API Error';
+        $errorType = 'unknown_error'; // Claude uses `type` for errors
+
+        if (is_array($errorData)) {
+            $errorType = $errorData['type'] ?? $statusCode;
+            $errorMessage = $errorData['message'] ?? $response->body();
+        }
+
+        match ($statusCode) {
+            // 401/403 handled in chat()
+            400 => throw new LlmApiException("Claude API Error - Bad Request ({$errorType}): {$errorMessage}", $statusCode),
+            429 => throw new LlmApiException("Claude API Error - Rate Limit Exceeded ({$errorType}): {$errorMessage}", $statusCode),
+            500 => throw new LlmApiException("Claude API Error - Internal Server Error ({$errorType}): {$errorMessage}", $statusCode),
+            529 => throw new LlmApiException("Claude API Error - Overloaded ({$errorType}): {$errorMessage}", $statusCode), // Specific Claude overload error
+            default => throw new LlmApiException("Claude API Error ({$errorType}, status:{$statusCode}): {$errorMessage}", $statusCode),
+        };
+    }
+
+    /**
+     * Validates the basic structure of the Claude response.
+     */
+    protected function isValidResponseStructure(?array $responseData): bool
+    {
+        if ($responseData === null) {
+            return false;
+        }
+
+        // Check for error structure first
+        if (isset($responseData['error']['type'])) {
+            return false; // Let chat() method handle the error content
+        }
+
+        // Check for successful response structure
+        return isset($responseData['id'], $responseData['model'], $responseData['content']) &&
+            is_array($responseData['content']) &&
+            count($responseData['content']) > 0 &&
+            isset($responseData['content'][0]['type'], $responseData['content'][0]['text']) && // Check first block
+            isset($responseData['stop_reason'], $responseData['usage']);
     }
 }

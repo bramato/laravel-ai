@@ -2,6 +2,8 @@
 
 namespace Bramato\LaravelAi\DTOs;
 
+use WendellAdriel\ValidatedDTO\Casting\ArrayCast;
+use WendellAdriel\ValidatedDTO\Casting\BooleanCast;
 use WendellAdriel\ValidatedDTO\ValidatedDTO;
 
 class ChatRequest extends ValidatedDTO
@@ -56,9 +58,9 @@ class ChatRequest extends ValidatedDTO
     protected function casts(): array
     {
         return [
-            'history' => 'array',
-            'options' => 'array',
-            'jsonMode' => 'bool',
+            'history' => new ArrayCast(),
+            'options' => new ArrayCast(),
+            'jsonMode' => new BooleanCast(),
         ];
     }
-} 
+}

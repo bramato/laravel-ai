@@ -2,6 +2,8 @@
 
 namespace Bramato\LaravelAi\DTOs;
 
+use WendellAdriel\ValidatedDTO\Casting\ArrayCast;
+use WendellAdriel\ValidatedDTO\Casting\BooleanCast;
 use WendellAdriel\ValidatedDTO\SimpleDTO;
 
 class ChatResponse extends SimpleDTO
@@ -49,9 +51,9 @@ class ChatResponse extends SimpleDTO
     protected function casts(): array
     {
         return [
-            'usage' => 'array',
-            'isJson' => 'bool',
-            'rawResponse' => 'array',
+            'usage' => new ArrayCast(),
+            'isJson' => new BooleanCast(),
+            'rawResponse' => new ArrayCast(),
             // decodedJsonContent is mixed and set manually, no cast needed here.
         ];
     }

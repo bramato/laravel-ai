@@ -4,3 +4,19 @@
 -   Implemented `LaravelAi` Facade.
 -   Created `src/Exceptions` directory.
 -   Created base `LlmApiException`.
+-   Created `AuthenticationException`.
+-   Created `InvalidResponseException`.
+-   Added `phpunit.xml` for test configuration.
+-   Created `tests/TestCase.php` base test class.
+-   Created basic unit tests for `ChatRequest` DTO.
+-   Corrected DTO casting syntax to use class-based casts.
+-   Fixed DTO tests by moving to Feature tests and using TestCase environment setup.
+-   Added feature tests for Service Provider loading, config merging, and publishing.
+-   Implemented basic error handling in `OpenAiClient`.
+-   Added feature tests for basic client usage (success, errors) using Http::fake().
+-   Implemented `DeepSeekClient` based on OpenAI compatibility.
+-   Added feature tests for `DeepSeekClient` (success, errors, base URI handling) using Http::fake().
+-   Implemented `GeminiClient` logic (payload/response mapping, error handling, API versioning).
+-   Added feature tests for `GeminiClient` (success, errors, safety blocks, JSON mode) using Http::fake().
+-   Implemented `ClaudeClient` logic (headers, payload, max_tokens, system prompt, message validation, response parsing, error handling).
+-   Added feature tests for `ClaudeClient` (success, errors, system prompt, message validation, JSON mode flag) using Http::fake().

@@ -5,16 +5,20 @@ namespace Bramato\LaravelAi\Clients;
 use Bramato\LaravelAi\Contracts\LlmClientInterface;
 use Bramato\LaravelAi\DTOs\ChatRequest;
 use Bramato\LaravelAi\DTOs\ChatResponse;
+use Bramato\LaravelAi\Exceptions\AuthenticationException;
+use Bramato\LaravelAi\Exceptions\InvalidResponseException;
+use Bramato\LaravelAi\Exceptions\LlmApiException;
 use Illuminate\Http\Client\Factory as HttpClientFactory;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
-// use Bramato\LaravelAi\Exceptions\LlmApiException;
-// use Bramato\LaravelAi\Exceptions\AuthenticationException;
+use Illuminate\Http\Client\Response;
+use Throwable;
 
 
 class DeepSeekClient implements LlmClientInterface
 {
     protected PendingRequest $httpClient;
+    protected string $apiEndpoint;
 
     public function __construct(
         protected HttpClientFactory $httpFactory,
@@ -23,6 +27,8 @@ class DeepSeekClient implements LlmClientInterface
         protected array $options = []
     ) {
         $this->httpClient = $this->configureHttpClient();
+        // Determine the correct endpoint based on the base URI provided
+        $this->apiEndpoint = $this->determineApiEndpoint();
     }
 
     /**
@@ -30,60 +36,79 @@ class DeepSeekClient implements LlmClientInterface
      */
     protected function configureHttpClient(): PendingRequest
     {
-        $baseUri = $this->options['base_uri'] ?? 'https://api.deepseek.com'; // Or /v1 for OpenAI compatibility endpoint
+        // Default base URI for DeepSeek's OpenAI-compatible endpoint
+        $baseUri = $this->options['base_uri'] ?? 'https://api.deepseek.com/v1';
         $timeout = $this->options['timeout'] ?? 30;
 
         return $this->httpFactory->baseUrl($baseUri)
             ->withToken($this->apiKey)
             ->acceptJson()
+            ->contentTypeJson() // Ensure Content-Type is set
             ->timeout($timeout);
     }
 
     /**
+     * Determines the correct relative API endpoint path.
+     * If the base_uri already ends with /v1, use a relative path.
+     * Otherwise, use the full path.
+     */
+    protected function determineApiEndpoint(): string
+    {
+        $baseUri = rtrim($this->options['base_uri'] ?? 'https://api.deepseek.com/v1', '/');
+        // Check if the effective baseUri already includes the version path
+        if (str_ends_with($baseUri, '/v1')) {
+            // Already configured with /v1, use relative path
+            return '/chat/completions';
+        } else {
+            // Base URI is likely just the domain, use full path (assuming v1)
+            // Or adjust if DeepSeek offers non-v1 endpoints via this client later
+            return '/v1/chat/completions';
+        }
+    }
+
+
+    /**
      * Sends a chat request to the DeepSeek API.
      *
-     * @param ChatRequest $request The DTO containing the request data.
-     * @return ChatResponse The DTO containing the model's response.
-     * @throws \Bramato\LaravelAi\Exceptions\LlmApiException On API errors.
-     * @throws RequestException
+     * @throws AuthenticationException
+     * @throws InvalidResponseException
+     * @throws LlmApiException
      */
     public function chat(ChatRequest $request): ChatResponse
     {
-        // TODO: Implement DeepSeek API call logic (expected to be very similar to OpenAI)
-        // 1. Prepare request payload
-        // 2. Make POST request to /chat/completions endpoint
-        // 3. Handle potential RequestException
-        // 4. Parse the response
-        // 5. Handle API errors
-        // 6. Map successful response to ChatResponse DTO
-
         $payload = $this->buildPayload($request);
 
         try {
-            // Use /v1/chat/completions if using the OpenAI compatibility endpoint base URI
-            $endpoint = ($this->options['base_uri'] ?? '') === 'https://api.deepseek.com/v1'
-                ? '/chat/completions'
-                : '/chat/completions'; // Default endpoint if using base api.deepseek.com
+            $response = $this->httpClient->post($this->apiEndpoint, $payload);
 
-            // Workaround: Check if base_uri ends with v1 and adjust endpoint. Cleaner way? Maybe store full endpoint path in config?
-            if (str_ends_with($this->options['base_uri'] ?? '', '/v1')) {
-                $endpoint = '/chat/completions'; // Use relative if base URI already includes /v1
-            } else {
-                $endpoint = '/chat/completions'; // Use full path if base URI is just the domain
+            // Handle specific HTTP errors first before checking success
+            if ($response->status() === 401) {
+                throw new AuthenticationException(
+                    $response->json('error.message', 'DeepSeek Authentication failed'),
+                    $response->status()
+                );
             }
 
-
-            $response = $this->httpClient->post($endpoint, $payload);
-
-            if (! $response->successful()) {
-                // TODO: Throw custom exception
-                $response->throw();
+            if ($response->failed()) {
+                $this->handleErrorResponse($response); // Handles other 4xx/5xx
             }
 
-            return $this->mapResponseToDTO($response->json() ?? [], $request->jsonMode);
+            $responseData = $response->json();
+
+            // Validate structure AFTER checking for errors
+            if (! $this->isValidResponseStructure($responseData)) {
+                throw new InvalidResponseException('Invalid response structure received from DeepSeek API.');
+            }
+
+            return $this->mapResponseToDTO($responseData, $request->jsonMode);
         } catch (RequestException $e) {
-            // TODO: Wrap the exception
-            throw $e;
+            throw new LlmApiException("HTTP Request Error calling DeepSeek API: {$e->getMessage()}", $e->getCode(), $e);
+        } catch (Throwable $e) {
+            // Rethrow our own exceptions, wrap others
+            if ($e instanceof LlmApiException || $e instanceof AuthenticationException || $e instanceof InvalidResponseException) {
+                throw $e;
+            }
+            throw new LlmApiException("An unexpected error occurred calling DeepSeek API: {$e->getMessage()}", $e->getCode(), $e);
         }
     }
 
@@ -92,7 +117,6 @@ class DeepSeekClient implements LlmClientInterface
      */
     protected function buildPayload(ChatRequest $request): array
     {
-        // Expected to be identical or very similar to OpenAIClient::buildPayload
         $payload = [
             'model' => $this->model,
             'messages' => [],
@@ -111,8 +135,8 @@ class DeepSeekClient implements LlmClientInterface
         $payload['messages'][] = ['role' => 'user', 'content' => $request->prompt];
 
         if (!empty($request->options)) {
-            // Check DeepSeek docs for specific supported options
-            $allowedOptions = ['temperature', 'max_tokens', 'top_p', 'frequency_penalty', 'presence_penalty', 'stop', 'seed'];
+            // Assuming DeepSeek uses the same options as OpenAI
+            $allowedOptions = ['temperature', 'max_tokens', 'top_p', 'frequency_penalty', 'presence_penalty', 'stop', 'seed', 'stream']; // Added stream
             $payload += array_intersect_key($request->options, array_flip($allowedOptions));
         }
 
@@ -128,7 +152,7 @@ class DeepSeekClient implements LlmClientInterface
      */
     protected function mapResponseToDTO(array $responseData, bool $wasJsonModeRequested): ChatResponse
     {
-        // Expected to be identical or very similar to OpenAIClient::mapResponseToDTO
+        // Assuming DeepSeek response structure matches OpenAI
         $content = $responseData['choices'][0]['message']['content'] ?? '';
         $decodedJson = null;
 
@@ -140,14 +164,50 @@ class DeepSeekClient implements LlmClientInterface
         }
 
         return new ChatResponse(
-            content: $content,
-            finishReason: $responseData['choices'][0]['finish_reason'] ?? 'unknown',
-            model: $responseData['model'] ?? $this->model,
-            id: $responseData['id'] ?? 'unknown',
-            usage: $responseData['usage'] ?? null,
-            isJson: $wasJsonModeRequested,
-            decodedJsonContent: $decodedJson,
-            rawResponse: $responseData
+            $content,
+            $responseData['choices'][0]['finish_reason'] ?? 'unknown',
+            $responseData['model'] ?? $this->model,
+            $responseData['id'] ?? 'unknown',
+            $responseData['usage'] ?? null,
+            $wasJsonModeRequested,
+            $decodedJson,
+            $responseData
         );
+    }
+
+    /**
+     * Handles non-successful HTTP responses.
+     *
+     * @throws LlmApiException
+     */
+    protected function handleErrorResponse(Response $response): void
+    {
+        $statusCode = $response->status();
+        $errorData = $response->json('error');
+        $errorMessage = is_array($errorData) && isset($errorData['message']) ? $errorData['message'] : $response->body();
+        $errorCode = is_array($errorData) && isset($errorData['code']) ? $errorData['code'] : $statusCode;
+
+        // Assuming DeepSeek uses similar error codes/structure to OpenAI
+        match ($statusCode) {
+            // 401 is handled in the main chat method
+            429 => throw new LlmApiException("DeepSeek API Error - Rate Limit Exceeded ({$errorCode}): {$errorMessage}", $statusCode), // Consider RateLimitException
+            default => throw new LlmApiException("DeepSeek API Error ({$errorCode}, status:{$statusCode}): {$errorMessage}", $statusCode),
+        };
+    }
+
+    /**
+     * Validates the basic structure of the DeepSeek response (assuming OpenAI compatibility).
+     */
+    protected function isValidResponseStructure(?array $responseData): bool
+    {
+        if ($responseData === null) {
+            return false;
+        }
+
+        // Assuming same structure as OpenAI
+        return isset($responseData['id'], $responseData['model'], $responseData['choices']) &&
+            is_array($responseData['choices']) &&
+            count($responseData['choices']) > 0 &&
+            isset($responseData['choices'][0]['message']['content']);
     }
 }

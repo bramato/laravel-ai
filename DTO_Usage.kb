@@ -73,39 +73,46 @@ protected function attributes(): array
 
 ## Casting delle Proprietà
 
-*   Simile al casting degli attributi dei modelli Eloquent.
+*   Simile al casting degli attributi dei modelli Eloquent, ma usa **classi specifiche**.
 *   Si definisce un metodo `casts(): array`.
-*   Le chiavi sono i nomi delle proprietà, i valori sono i tipi di cast desiderati.
+*   Le chiavi sono i nomi delle proprietà, i valori sono **istanze delle classi di cast** desiderate.
 *   I cast vengono applicati *dopo* la validazione.
 
-**Tipi di Cast Disponibili:**
+**Tipi di Cast Disponibili (Instanziare come Oggetti):**
 
-*   `string`: Converte in stringa.
-*   `int` o `integer`: Converte in intero.
-*   `float` o `double`: Converte in float.
-*   `bool` o `boolean`: Converte in booleano.
-*   `array`: Converte in array (da JSON o stringa delimitata).
-*   `date`: Converte in oggetto `Carbon` da una stringa data/datetime.
-*   `datetime`: Alias di `date`.
-*   `timestamp`: Converte in timestamp Unix.
-*   `dto`: Converte un array o un oggetto in un'altra istanza di `ValidatedDTO`.
-*   `collection`: Converte un array di dati in una Collection di `ValidatedDTO`.
-*   `enum`: Converte un valore in un'istanza di Enum PHP (richiede il nome completo della classe Enum).
+*   `new StringCast()`: Converte in stringa.
+*   `new IntegerCast()`: Converte in intero.
+*   `new FloatCast()`: Converte in float.
+*   `new BooleanCast()`: Converte in booleano (usa `filter_var` con `FILTER_VALIDATE_BOOLEAN`).
+*   `new ArrayCast()`: Converte in array (da JSON o wrappa altri tipi). Può accettare un altro cast nel costruttore per castare gli elementi interni (es. `new ArrayCast(new IntegerCast())`).
+*   `new CarbonCast(?string $tz = null, ?string $format = null)`: Converte in oggetto `Carbon`. Accetta timezone e formato opzionali.
+*   `new CarbonImmutableCast(?string $tz = null, ?string $format = null)`: Converte in oggetto `CarbonImmutable`.
+*   `new CollectionCast(?Castable $cast = null)`: Converte in `Illuminate\Support\Collection`. Può accettare un altro cast nel costruttore per castare gli elementi interni.
+*   `new DTOCast(string $dtoClass)`: Converte un array o JSON in un'altra istanza di `ValidatedDTO`. Richiede il nome completo della classe DTO.
+*   `new EnumCast(string $enumClass)`: Converte in un'istanza di Enum PHP. Richiede il nome completo della classe Enum.
+*   `new ModelCast(string $modelClass)`: Converte array o JSON in un'istanza di Eloquent Model.
+*   `new ObjectCast()`: Converte array o JSON in `stdClass`.
 
-**Esempio di Casting:**
+**Esempio di Casting (Sintassi Corretta):**
 
 ```php
-use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use App\Enums\UserRole;
-use App\DTOs\AddressDTO; // Un altro DTO
+use App\DTOs\AddressDTO;
 use Illuminate\Support\Collection;
+use WendellAdriel\ValidatedDTO\Casting\CarbonImmutableCast;
+use WendellAdriel\ValidatedDTO\Casting\IntegerCast;
+use WendellAdriel\ValidatedDTO\Casting\BooleanCast;
+use WendellAdriel\ValidatedDTO\Casting\DTOCast;
+use WendellAdriel\ValidatedDTO\Casting\CollectionCast;
+use WendellAdriel\ValidatedDTO\Casting\EnumCast;
 
 class UserProfileDTO extends ValidatedDTO
 {
     public string $username;
     public int $age;
     public bool $newsletter;
-    public Carbon $birthdate;
+    public CarbonImmutable $birthdate;
     public AddressDTO $address; // Nested DTO
     public Collection $tags; // Collection di TagDTO
     public UserRole $role;
@@ -115,12 +122,12 @@ class UserProfileDTO extends ValidatedDTO
     protected function casts(): array
     {
         return [
-            'age' => 'int',
-            'newsletter' => 'bool',
-            'birthdate' => 'date',
-            'address' => 'dto:' . AddressDTO::class,
-            'tags' => 'collection:' . TagDTO::class, // Assumendo esista un TagDTO
-            'role' => 'enum:' . UserRole::class,
+            'age' => new IntegerCast(),
+            'newsletter' => new BooleanCast(),
+            'birthdate' => new CarbonImmutableCast(format: 'Y-m-d'), // Esempio con formato
+            'address' => new DTOCast(AddressDTO::class),
+            'tags' => new CollectionCast(new DTOCast(TagDTO::class)), // Esempio Collection di DTO
+            'role' => new EnumCast(UserRole::class),
         ];
     }
 }

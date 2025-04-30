@@ -5,11 +5,14 @@ namespace Bramato\LaravelAi\Clients;
 use Bramato\LaravelAi\Contracts\LlmClientInterface;
 use Bramato\LaravelAi\DTOs\ChatRequest;
 use Bramato\LaravelAi\DTOs\ChatResponse;
+use Bramato\LaravelAi\Exceptions\AuthenticationException;
+use Bramato\LaravelAi\Exceptions\InvalidResponseException;
+use Bramato\LaravelAi\Exceptions\LlmApiException;
 use Illuminate\Http\Client\Factory as HttpClientFactory;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
-// use Bramato\LaravelAi\Exceptions\LlmApiException; // To be created
-// use Bramato\LaravelAi\Exceptions\AuthenticationException; // To be created
+use Illuminate\Http\Client\Response;
+use Throwable;
 
 class OpenAiClient implements LlmClientInterface
 {
@@ -48,37 +51,47 @@ class OpenAiClient implements LlmClientInterface
     /**
      * Sends a chat request to the OpenAI API.
      *
-     * @param ChatRequest $request The DTO containing the request data.
-     * @return ChatResponse The DTO containing the model's response.
-     * @throws \Bramato\LaravelAi\Exceptions\LlmApiException On API errors.
-     * @throws RequestException
+     * @throws AuthenticationException
+     * @throws InvalidResponseException
+     * @throws LlmApiException
      */
     public function chat(ChatRequest $request): ChatResponse
     {
-        // TODO: Implement OpenAI API call logic
-        // 1. Prepare request payload from ChatRequest DTO (messages, model, options, jsonMode)
-        // 2. Make POST request to /chat/completions endpoint
-        // 3. Handle potential RequestException
-        // 4. Parse the response
-        // 5. Handle API errors (check status code, error messages in response body)
-        // 6. Map successful response to ChatResponse DTO
-
-        // Placeholder - Replace with actual implementation
         $payload = $this->buildPayload($request);
 
         try {
             $response = $this->httpClient->post('/chat/completions', $payload);
 
-            if (! $response->successful()) {
-                // TODO: Throw custom exception (e.g., LlmApiException) based on response status/body
-                $response->throw(); // Throws Illuminate\Http\Client\RequestException for now
+            // Handle specific HTTP errors first before checking success
+            if ($response->status() === 401) {
+                throw new AuthenticationException(
+                    $response->json('error.message', 'Authentication failed'),
+                    $response->status()
+                );
             }
 
-            return $this->mapResponseToDTO($response->json(), $request->jsonMode);
+            if ($response->failed()) {
+                $this->handleErrorResponse($response); // Handles other 4xx/5xx
+            }
+
+            $responseData = $response->json();
+
+            // Validate structure AFTER checking for errors
+            if (! $this->isValidResponseStructure($responseData)) {
+                throw new InvalidResponseException('Invalid response structure received from OpenAI API.');
+            }
+
+            return $this->mapResponseToDTO($responseData, $request->jsonMode);
         } catch (RequestException $e) {
-            // TODO: Wrap the exception or re-throw a custom one (e.g., LlmApiException)
-            // Potentially check for specific status codes (401 -> AuthenticationException)
-            throw $e;
+            // This catch might now only handle connection errors or non-401 HTTP errors if not caught above
+            // Re-throw as a generic LlmApiException or handle specific cases
+            throw new LlmApiException("HTTP Request Error calling OpenAI API: {$e->getMessage()}", $e->getCode(), $e);
+        } catch (Throwable $e) {
+            // Rethrow our own exceptions, wrap others
+            if ($e instanceof LlmApiException || $e instanceof AuthenticationException || $e instanceof InvalidResponseException) {
+                throw $e;
+            }
+            throw new LlmApiException("An unexpected error occurred: {$e->getMessage()}", $e->getCode(), $e);
         }
     }
 
@@ -142,14 +155,52 @@ class OpenAiClient implements LlmClientInterface
         }
 
         return new ChatResponse(
-            content: $content,
-            finishReason: $responseData['choices'][0]['finish_reason'] ?? 'unknown',
-            model: $responseData['model'] ?? $this->model,
-            id: $responseData['id'] ?? 'unknown',
-            usage: $responseData['usage'] ?? null,
-            isJson: $wasJsonModeRequested, // Indicate JSON was *requested*
-            decodedJsonContent: $decodedJson,
-            rawResponse: $responseData
+            $content,
+            $responseData['choices'][0]['finish_reason'] ?? 'unknown',
+            $responseData['model'] ?? $this->model,
+            $responseData['id'] ?? 'unknown',
+            $responseData['usage'] ?? null,
+            $wasJsonModeRequested,
+            $decodedJson,
+            $responseData
         );
+    }
+
+    /**
+     * Handles non-successful HTTP responses.
+     *
+     * @throws LlmApiException
+     * @throws AuthenticationException
+     */
+    protected function handleErrorResponse(Response $response): void
+    {
+        $statusCode = $response->status();
+        // Ensure error data exists before accessing keys
+        $errorData = $response->json('error');
+        $errorMessage = is_array($errorData) && isset($errorData['message']) ? $errorData['message'] : $response->body();
+        $errorCode = is_array($errorData) && isset($errorData['code']) ? $errorData['code'] : $statusCode;
+
+        match ($statusCode) {
+            // 401 should ideally be caught before this method
+            // 401 => throw new AuthenticationException("OpenAI API Error ({$errorCode}): {$errorMessage}", $statusCode),
+            429 => throw new LlmApiException("OpenAI API Error - Rate Limit Exceeded ({$errorCode}): {$errorMessage}", $statusCode), // Consider RateLimitException
+            // Catch other client/server errors
+            default => throw new LlmApiException("OpenAI API Error ({$errorCode}, status:{$statusCode}): {$errorMessage}", $statusCode),
+        };
+    }
+
+    /**
+     * Validates the basic structure of the OpenAI response.
+     */
+    protected function isValidResponseStructure(?array $responseData): bool
+    {
+        if ($responseData === null) {
+            return false;
+        }
+
+        return isset($responseData['id'], $responseData['model'], $responseData['choices']) &&
+            is_array($responseData['choices']) &&
+            count($responseData['choices']) > 0 &&
+            isset($responseData['choices'][0]['message']['content']);
     }
 }
