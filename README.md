@@ -53,22 +53,25 @@ The package utilizes Laravel's auto-discovery, so the Service Provider and Facad
     # OpenAI Configuration
     OPENAI_API_KEY=your_openai_api_key
     OPENAI_MODEL=gpt-4-turbo
-    # OPENAI_ORGANIZATION=your_openai_org_id (Optional)
+    OPENAI_ORGANIZATION=your_openai_org_id # Optional: Add your organization ID
 
     # Gemini Configuration
     GEMINI_API_KEY=your_gemini_api_key
     GEMINI_MODEL=gemini-1.5-pro-latest
     GEMINI_API_VERSION=v1beta # Recommended for full features like JSON mode
+    # Example for safety settings (optional, configure in config/laravel-ai.php for complex values)
+    # GEMINI_SAFETY_SETTINGS_HARM_CATEGORY_HATE_SPEECH=BLOCK_ONLY_HIGH
 
     # Claude Configuration
     CLAUDE_API_KEY=your_claude_api_key
     CLAUDE_MODEL=claude-3-sonnet-20240229
     CLAUDE_API_VERSION=2023-06-01 # Required by Claude
+    # CLAUDE_BASE_URI=https://api.anthropic.com/v1 (Default)
 
     # DeepSeek Configuration
     DEEPSEEK_API_KEY=your_deepseek_api_key
     DEEPSEEK_MODEL=deepseek-chat
-    # DEEPSEEK_BASE_URI=https://api.deepseek.com/v1 (Default, if using OpenAI compatible endpoint)
+    DEEPSEEK_BASE_URI=https://api.deepseek.com/v1 # Default, if using OpenAI compatible endpoint
     ```
 
 3.  **Review `config/laravel-ai.php` (Optional):**
@@ -77,7 +80,7 @@ The package utilizes Laravel's auto-discovery, so the Service Provider and Facad
 
     -   Set the `default` provider.
     -   Override environment variables.
-    -   Configure provider-specific `options` like `base_uri`, `timeout`, `version` (for Gemini/Claude), or API-specific parameters not covered by the DTO.
+    -   Configure provider-specific `options` like `base_uri`, `timeout`, `version` (for Gemini/Claude), `organization` (for OpenAI), `safety_settings` (for Gemini - complex array structure, recommended here), or other API-specific parameters.
 
 ## Usage
 
@@ -162,20 +165,20 @@ This DTO holds all the input parameters for the `chat` method. It uses `wendella
 -   `prompt` (string, required): The main user message/question.
 -   `systemMessage` (string, optional): Instructions for the AI's persona or behavior.
 -   `history` (array, optional): An array of previous messages for context. Each message should be an associative array with `role` (`user` or `assistant`) and `content` (string).
-    -   **Important:** History must alternate roles (user, assistant, user, ...). Claude enforces this strictly.
--   `options` (array, optional): Provider-specific options like `temperature`, `max_tokens`, `top_p`, etc. Refer to the specific LLM provider's documentation for available options. The package attempts to map common options.
--   `jsonMode` (bool, optional, default: `false`): If `true`, instructs the LLM to return a JSON response. See **Provider Notes** below.
+    -   **Important:** History must alternate roles (user, assistant, user, ...). Claude and Gemini enforce this strictly.
+-   `options` (array, optional): Provider-specific options like `temperature`, `max_tokens`, `top_p`, `frequency_penalty`, `presence_penalty`, `stop`, `seed`, `stream`, `logprobs` (OpenAI), `top_logprobs` (OpenAI), `topK`, `topP` (Gemini), `candidateCount` (Gemini), `stop_sequences` (Claude), `user` (OpenAI). Refer to the specific LLM provider's documentation for available options. The package attempts to map common options where names differ (e.g., `max_tokens` -> Gemini `maxOutputTokens`).
+-   `jsonMode` (bool, optional, default: `false`): If `true`, instructs the LLM to return a JSON response. See **Provider Notes** below for implementation details.
 
 ### The `ChatResponse` DTO
 
 This DTO holds the results from the `chat` method.
 
 -   `content` (string): The main text content of the response.
--   `finishReason` (string): The reason the LLM stopped generating text (e.g., `stop`, `length`, `tool_calls`).
+-   `finishReason` (string): The reason the LLM stopped generating text (e.g., `stop`, `length`, `tool_calls`, `MAX_TOKENS`). Value varies by provider.
 -   `model` (string): The specific model ID that generated the response.
--   `id` (string): A unique identifier for the chat interaction provided by the API (format varies by provider).
--   `usage` (array, optional): Token usage information (e.g., `prompt_tokens`, `completion_tokens`, `total_tokens`). Structure may vary by provider.
--   `isJson` (bool): Indicates if `jsonMode` was requested _and_ the `content` was successfully decoded as JSON.
+-   `id` (string): A unique identifier for the chat interaction provided by the API (format varies by provider, generated for Gemini).
+-   `usage` (array, optional): Token usage information (e.g., `prompt_tokens`, `completion_tokens`, `total_tokens`). Structure may vary by provider (check `rawResponse` for details).
+-   `isJson` (bool): Indicates if `jsonMode` was requested _and_ the `content` was successfully decoded as JSON (or extracted and decoded for Claude).
 -   `decodedJsonContent` (mixed): If `isJson` is true, this holds the PHP associative array/value decoded from the JSON `content`. Otherwise, it's `null`.
 -   `rawResponse` (array, optional): The original, unprocessed response array from the provider's API for debugging or accessing non-standard data.
 
@@ -183,9 +186,9 @@ This DTO holds the results from the `chat` method.
 
 The package throws custom exceptions extending `\Exception` located in `Bramato\LaravelAi\Exceptions`:
 
--   `LlmApiException`: General API errors (server errors, rate limits, bad requests).
--   `AuthenticationException`: Errors related to invalid API keys or permissions (401, 403).
--   `InvalidResponseException`: Errors when the API response is malformed or blocked (e.g., safety settings).
+-   `LlmApiException`: General API errors (server errors 5xx, rate limits 429, bad requests 400, etc.). The message often includes the provider's error code/type and message.
+-   `AuthenticationException`: Errors related to invalid API keys or permissions (typically 401, 403).
+-   `InvalidResponseException`: Errors when the API response is malformed, blocked by safety settings (Gemini), or otherwise unusable despite a successful HTTP status.
 
 You should wrap your `LaravelAi::chat()` calls in `try...catch` blocks to handle potential issues.
 
@@ -208,13 +211,14 @@ try {
 ## Provider Notes
 
 -   **JSON Mode:**
-    -   **OpenAI / DeepSeek:** Supported via the `response_format` parameter. Works best with models trained for JSON output.
-    -   **Gemini:** Supported via the `response_mime_type` parameter. Requires the `v1beta` API version (configurable in `laravel-ai.php` options or `GEMINI_API_VERSION` env var).
-    -   **Claude:** Does **not** have a dedicated API parameter. Setting `jsonMode: true` will make the package _attempt_ to parse the response as JSON, but you **must** explicitly instruct Claude to return JSON within your `prompt` or `systemMessage` for it to work reliably.
--   **Claude Headers:** Requires `anthropic-version` header, which is handled automatically based on the `version` in the config options (defaults to `2023-06-01`).
--   **Claude History:** Strictly requires alternating `user` and `assistant` roles in the `history` array.
--   **Gemini History:** Also requires alternating roles.
--   **System Prompts:** Implementation varies slightly. The package maps the `systemMessage` DTO property to the appropriate mechanism (`system` parameter for Claude, first message role for others).
+    -   **OpenAI / DeepSeek:** Supported via the `response_format` parameter (`{ "type": "json_object" }`). Works best with models explicitly trained for JSON output. You must still guide the model via the prompt to produce the desired JSON structure.
+    -   **Gemini:** Supported via the `generationConfig.response_mime_type` parameter (`application/json`). Requires the `v1beta` API version (configurable in `laravel-ai.php` options or `GEMINI_API_VERSION` env var).
+    -   **Claude:** Does **not** have a dedicated API parameter. Setting `jsonMode: true` will make the package _attempt_ to extract JSON from the response (looking for `json\n{...}\n` blocks) and parse it. You **must** explicitly instruct Claude to return JSON within your `prompt` or `systemMessage` for it to work reliably.
+-   **Provider Options:** Use the `options` key in `config/laravel-ai.php` or the `options` array in `ChatRequest` to pass provider-specific parameters (like `organization` for OpenAI or `safety_settings` for Gemini). Options passed in `ChatRequest` usually take precedence if supported, but check individual client implementations if needed.
+-   **Claude Headers:** Requires `x-api-key` and `anthropic-version` headers. These are handled automatically based on the configuration (`api_key` and `options.version`).
+-   **Claude History:** Strictly requires alternating `user` and `assistant` roles in the `history` array. The last message in the history _before_ the current prompt must be from the `assistant`.
+-   **Gemini History:** Requires alternating `user` and `model` (maps from `assistant`) roles. The conversation must start with a `user` role.
+-   **System Prompts:** Implementation varies slightly. The package maps the `systemMessage` DTO property to the appropriate mechanism (`system` parameter for Claude, first `user` message followed by `model` placeholder for Gemini, first `system` message for OpenAI/DeepSeek).
 
 ## Testing
 

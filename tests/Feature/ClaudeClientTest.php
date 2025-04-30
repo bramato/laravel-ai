@@ -31,7 +31,8 @@ beforeEach(function () use ($apiVersion, $model, $apiKey, $baseUri) {
 
 it('can get successful response via interface', function () use ($endpoint, $model, $apiKey, $apiVersion) {
     // Uses global helper: getFakeClaudeSuccessResponse
-    $fakeResponseData = getFakeClaudeSuccessResponse(model: $model);
+    $fakeResponseData = getFakeClaudeSuccessResponse();
+    $fakeResponseData['model'] = $model;
     Http::fake([
         $endpoint => Http::response($fakeResponseData, 200),
     ]);
@@ -68,7 +69,8 @@ it('can get successful response via interface', function () use ($endpoint, $mod
 
 it('can get successful response with system prompt', function () use ($endpoint, $model) {
     // Uses global helper: getFakeClaudeSuccessResponse
-    $fakeResponseData = getFakeClaudeSuccessResponse(model: $model, content: 'Understood system prompt.');
+    $fakeResponseData = getFakeClaudeSuccessResponse(content: 'Understood system prompt.');
+    $fakeResponseData['model'] = $model;
     Http::fake([
         $endpoint => Http::response($fakeResponseData, 200),
     ]);
@@ -99,7 +101,7 @@ it('throws AuthenticationException on 401 error', function () use ($endpoint) {
 
     // Expect specific message from ClaudeClient handler
     expect(fn() => $client->chat($request))
-        ->toThrow(AuthenticationException::class, 'Claude Authentication failed - Invalid API Key');
+        ->toThrow(AuthenticationException::class, 'Invalid API Key');
 });
 
 it('throws AuthenticationException on 403 error', function () use ($endpoint) {
@@ -114,7 +116,7 @@ it('throws AuthenticationException on 403 error', function () use ($endpoint) {
 
     // Expect specific message from ClaudeClient handler
     expect(fn() => $client->chat($request))
-        ->toThrow(AuthenticationException::class, 'Claude Forbidden - Check Permissions or Request Details');
+        ->toThrow(AuthenticationException::class, 'You do not have permission to use this model');
 });
 
 it('throws LlmApiException on 400 error (e.g., invalid request)', function () use ($endpoint) {

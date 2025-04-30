@@ -81,7 +81,7 @@ class ClaudeClient implements LlmClientInterface
                 'anthropic-version' => $this->apiVersion,
             ])
             ->acceptJson()
-            ->contentTypeJson() // Claude expects application/json Content-Type
+            ->asJson()
             ->timeout($timeout);
     }
 
@@ -265,30 +265,39 @@ class ClaudeClient implements LlmClientInterface
                 if (isset($block['type']) && $block['type'] === 'text' && isset($block['text'])) {
                     $content .= $block['text'];
                 }
-                // Future: Could potentially handle other block types like 'tool_use'.
             }
         }
 
-        // Attempt to decode content if JSON mode was requested (via prompt).
         $decodedJson = null;
         if ($wasJsonModeRequested && !empty($content)) {
-            $decoded = json_decode($content, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                $decodedJson = $decoded;
+            // Tentativo di estrarre il blocco JSON delimitato da ```json ... ```
+            if (preg_match('/```json\s*({.*?})\s*```/s', $content, $matches)) {
+                $jsonString = $matches[1]; // Estrae il contenuto tra le parentesi graffe
+                $decoded = json_decode($jsonString, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $decodedJson = $decoded;
+                }
+            } else {
+                // Fallback: Prova a decodificare l'intero contenuto se i delimitatori non sono presenti
+                // Potrebbe funzionare se il modello restituisce solo JSON senza delimitatori
+                $decoded = json_decode($content, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $decodedJson = $decoded;
+                }
             }
-            // If decoding fails, $decodedJson remains null.
         }
 
-        return new ChatResponse(
-            $content, // Raw content string (potentially JSON if prompted correctly)
-            $responseData['stop_reason'] ?? 'unknown',
-            $responseData['model'] ?? $this->model, // Model ID from response or config
-            $responseData['id'] ?? 'unknown', // Claude provides a message ID
-            $responseData['usage'] ?? null, // Claude provides usage {input_tokens, output_tokens}
-            $wasJsonModeRequested && ($decodedJson !== null), // isJson true only if requested AND decoded
-            $decodedJson, // Decoded array/value or null
-            $responseData // Original raw response
-        );
+        // Passare un array associativo al costruttore di SimpleDTO
+        return new ChatResponse([
+            'content' => $content,
+            'finishReason' => $responseData['stop_reason'] ?? 'unknown',
+            'model' => $responseData['model'] ?? $this->model,
+            'id' => $responseData['id'] ?? 'unknown',
+            'usage' => $responseData['usage'] ?? null,
+            'isJson' => $wasJsonModeRequested && ($decodedJson !== null),
+            'decodedJsonContent' => $decodedJson,
+            'rawResponse' => $responseData
+        ]);
     }
 
     /**

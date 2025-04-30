@@ -37,20 +37,17 @@ it('merges the configuration correctly', function () {
 });
 
 it('publishes the configuration file', function () {
-    // Target path for the published config
+    // Ensure the config file doesn't exist initially in the test environment's config path
     $publishedConfigPath = config_path('laravel-ai.php');
-
-    // Ensure the file doesn't exist before publishing
     if (File::exists($publishedConfigPath)) {
         File::delete($publishedConfigPath);
     }
-
     expect(File::exists($publishedConfigPath))->toBeFalse();
 
-    // Run the vendor:publish command
+    // Run the vendor:publish command with the correct tag
     Artisan::call('vendor:publish', [
         '--provider' => LaravelAiServiceProvider::class,
-        '--tag' => 'config',
+        '--tag' => 'laravel-ai-config',
     ]);
 
     // Check if the file was published
@@ -60,6 +57,8 @@ it('publishes the configuration file', function () {
     $sourceConfigPath = __DIR__ . '/../../config/laravel-ai.php';
     expect(File::get($publishedConfigPath))->toBe(File::get($sourceConfigPath));
 
-    // Clean up the published file
-    File::delete($publishedConfigPath);
+    // Clean up the published file after the test
+    if (File::exists($publishedConfigPath)) {
+        File::delete($publishedConfigPath);
+    }
 });

@@ -53,7 +53,7 @@ class OpenAiClient implements LlmClientInterface
         $client = $this->httpFactory->baseUrl($baseUri)
             ->withToken($this->apiKey)
             ->acceptJson()
-            ->contentTypeJson() // Ensure Content-Type is set
+            ->asJson()
             ->timeout($timeout);
 
         if ($organization) {
@@ -172,25 +172,24 @@ class OpenAiClient implements LlmClientInterface
         $content = $responseData['choices'][0]['message']['content'] ?? '';
         $decodedJson = null;
 
-        // Attempt to decode content if JSON mode was requested
         if ($wasJsonModeRequested && !empty($content)) {
             $decoded = json_decode($content, true);
             if (json_last_error() === JSON_ERROR_NONE) {
                 $decodedJson = $decoded;
             }
-            // If decoding fails, $decodedJson remains null, $content holds the raw string.
         }
 
-        return new ChatResponse(
-            $content, // Raw content string (might be JSON)
-            $responseData['choices'][0]['finish_reason'] ?? 'unknown',
-            $responseData['model'] ?? $this->model,
-            $responseData['id'] ?? 'unknown',
-            $responseData['usage'] ?? null,
-            $wasJsonModeRequested && ($decodedJson !== null), // isJson is true only if requested AND successfully decoded
-            $decodedJson, // The decoded array/value, or null
-            $responseData // Keep the original raw response
-        );
+        // Passare un array associativo al costruttore di SimpleDTO
+        return new ChatResponse([
+            'content' => $content,
+            'finishReason' => $responseData['choices'][0]['finish_reason'] ?? 'unknown',
+            'model' => $responseData['model'] ?? $this->model,
+            'id' => $responseData['id'] ?? 'unknown',
+            'usage' => $responseData['usage'] ?? null,
+            'isJson' => $wasJsonModeRequested && ($decodedJson !== null),
+            'decodedJsonContent' => $decodedJson,
+            'rawResponse' => $responseData
+        ]);
     }
 
     /**

@@ -89,7 +89,7 @@ class GeminiClient implements LlmClientInterface
         // Base URL is part of the full apiUrl for Gemini, so we don't set it here.
         // Key is also in the URL.
         return $this->httpFactory->acceptJson()
-            ->contentTypeJson()
+            ->asJson()
             ->timeout($timeout);
     }
 
@@ -294,14 +294,9 @@ class GeminiClient implements LlmClientInterface
     protected function mapResponseToDTO(array $responseData, bool $wasJsonModeRequested): ChatResponse
     {
         // Extract primary content from the first candidate
-        // Assumes `candidates[0]` exists, validation happens in `isValidResponseStructure`
         $content = $responseData['candidates'][0]['content']['parts'][0]['text'] ?? '';
         $finishReason = $responseData['candidates'][0]['finishReason'] ?? 'unknown';
-
-        // Gemini does not provide a standard response ID, generate one.
         $id = 'gemini-' . bin2hex(random_bytes(8));
-
-        // Extract usage data if available (location varies slightly by API version/response type)
         $usage = null;
         if (isset($responseData['usageMetadata'])) {
             $usage = [
@@ -310,31 +305,25 @@ class GeminiClient implements LlmClientInterface
                 'total_tokens' => $responseData['usageMetadata']['totalTokenCount'] ?? null,
             ];
         }
-        // Note: Some older/different Gemini responses might have token counts elsewhere (e.g., promptFeedback).
-        // We prioritize usageMetadata as it seems standard for generateContent.
-
-        // Handle JSON decoding if requested
         $decodedJson = null;
         if ($wasJsonModeRequested && !empty($content)) {
-            // When response_mime_type is application/json, the text content *should* be valid JSON.
             $decoded = json_decode($content, true);
             if (json_last_error() === JSON_ERROR_NONE) {
                 $decodedJson = $decoded;
             }
-            // If decoding fails, isJson will be false, decodedJsonContent null.
         }
 
-        return new ChatResponse(
-            $content, // Raw content string (might be JSON)
-            // Named arguments might cause linter issues but are valid PHP 8+
-            finishReason: $finishReason,
-            model: $this->model, // Use the configured model ID passed to the constructor
-            id: $id,
-            usage: $usage,
-            isJson: $wasJsonModeRequested && ($decodedJson !== null), // True only if requested AND successfully decoded
-            decodedJsonContent: $decodedJson,
-            rawResponse: $responseData // Original raw response
-        );
+        // Passare un array associativo al costruttore di SimpleDTO
+        return new ChatResponse([
+            'content' => $content,
+            'finishReason' => $finishReason,
+            'model' => $this->model,
+            'id' => $id,
+            'usage' => $usage,
+            'isJson' => $wasJsonModeRequested && ($decodedJson !== null),
+            'decodedJsonContent' => $decodedJson,
+            'rawResponse' => $responseData
+        ]);
     }
 
     /**

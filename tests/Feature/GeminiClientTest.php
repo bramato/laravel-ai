@@ -131,4 +131,35 @@ it('throws InvalidResponseException on malformed success response (missing text)
 });
 
 // Note: JSON mode tests are handled in JsonModeTest.php
-// Test for API version check is also covered there. 
+// Test for API version check is also covered there.
+
+it('sends safety settings when configured', function () use ($fullApiUrlPattern) {
+    $customSafetySettings = [
+        [
+            'category' => 'HARM_CATEGORY_HATE_SPEECH',
+            'threshold' => 'BLOCK_ONLY_HIGH',
+        ],
+        [
+            'category' => 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            'threshold' => 'BLOCK_MEDIUM_AND_ABOVE',
+        ],
+    ];
+
+    // Configure safety settings via options array
+    config()->set('laravel-ai.providers.gemini.options.safety_settings', $customSafetySettings);
+
+    $fakeResponseData = getFakeGeminiSuccessResponse('Safe content');
+    Http::fake([
+        $fullApiUrlPattern => Http::response($fakeResponseData, 200),
+    ]);
+
+    // Re-resolve client to pick up new config
+    $client = app(LlmClientInterface::class);
+    $request = new ChatRequest(['prompt' => 'Test Safety Settings']);
+    $client->chat($request);
+
+    Http::assertSent(function ($httpRequest) use ($customSafetySettings) {
+        return isset($httpRequest->data()['safetySettings'])
+            && $httpRequest->data()['safetySettings'] === $customSafetySettings;
+    });
+});

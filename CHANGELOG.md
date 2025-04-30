@@ -1,23 +1,34 @@
-## 1.0.0 - YYYY-MM-DD
+# Changelog
 
--   Created `src/Facades` directory.
--   Implemented `LaravelAi` Facade.
--   Created `src/Exceptions` directory.
--   Created base `LlmApiException`.
--   Created `AuthenticationException`.
--   Created `InvalidResponseException`.
--   Added `phpunit.xml` for test configuration.
--   Created `tests/TestCase.php` base test class.
--   Created basic unit tests for `ChatRequest` DTO.
--   Corrected DTO casting syntax to use class-based casts.
--   Fixed DTO tests by moving to Feature tests and using TestCase environment setup.
--   Added feature tests for Service Provider loading, config merging, and publishing.
--   Implemented basic error handling in `OpenAiClient`.
--   Added feature tests for basic client usage (success, errors) using Http::fake().
--   Implemented `DeepSeekClient` based on OpenAI compatibility.
--   Added feature tests for `DeepSeekClient` (success, errors, base URI handling) using Http::fake().
--   Implemented `GeminiClient` logic (payload/response mapping, error handling, API versioning).
--   Added feature tests for `GeminiClient` (success, errors, safety blocks, JSON mode) using Http::fake().
--   Implemented `ClaudeClient` logic (headers, payload, max_tokens, system prompt, message validation, response parsing, error handling).
--   Added feature tests for `ClaudeClient` (success, errors, system prompt, message validation, JSON mode flag) using Http::fake().
--   Added dedicated feature tests for JSON mode handling across all providers.
+All notable changes to `bramato/laravel-ai` will be documented in this file.
+
+## [1.0.0] - 2025-XX-XX
+
+### Added
+
+-   Initial release of the `bramato/laravel-ai` package.
+-   Unified `LlmClientInterface` and `LaravelAi` Facade for interacting with LLM chat APIs.
+-   Support for OpenAI, Google Gemini, Anthropic Claude, and DeepSeek providers.
+-   Configuration file (`config/laravel-ai.php`) for API keys, models, and options.
+-   `ChatRequest` and `ChatResponse` DTOs using `wendelladriel/laravel-validated-dto`.
+-   Custom exceptions (`LlmApiException`, `AuthenticationException`, `InvalidResponseException`).
+-   Support for chat history, system messages, and JSON mode (provider-specific implementation).
+-   Basic feature tests for core functionality, providers, DTOs, and JSON mode using Pest and Testbench.
+-   Comprehensive `README.md` documentation.
+-   `CONTRIBUTING.md`, `LICENSE.md`, `.editorconfig`, `.gitignore`.
+
+<!--
+## [Unreleased]
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+-->

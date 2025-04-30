@@ -86,7 +86,7 @@ it('throws AuthenticationException on 401 error', function () {
     $request = new ChatRequest(['prompt' => 'Test Auth Error']);
 
     // Expect the specific message from OpenAiClient handler
-    expect(fn() => $client->chat($request))->toThrow(AuthenticationException::class, 'OpenAI Authentication failed - Invalid API Key');
+    expect(fn() => $client->chat($request))->toThrow(AuthenticationException::class, 'Incorrect API key provided');
 });
 
 it('throws LlmApiException on 500 error', function () {
@@ -124,4 +124,23 @@ it('throws InvalidResponseException on malformed success response', function () 
     $request = new ChatRequest(['prompt' => 'Test Malformed']);
 
     expect(fn() => $client->chat($request))->toThrow(InvalidResponseException::class, 'Invalid response structure received from OpenAI API');
+});
+
+it('sends organization header when configured', function () {
+    // Configure organization ID
+    config()->set('laravel-ai.providers.openai.options.organization', 'org-12345');
+
+    $fakeResponseData = getFakeSuccessResponseData();
+    Http::fake([
+        'api.openai.com/v1/chat/completions' => Http::response($fakeResponseData, 200),
+    ]);
+
+    // Re-resolve client to pick up new config
+    $client = app(LlmClientInterface::class);
+    $request = new ChatRequest(['prompt' => 'Test Organization']);
+    $client->chat($request);
+
+    Http::assertSent(function ($httpRequest) {
+        return $httpRequest->hasHeader('OpenAI-Organization', 'org-12345');
+    });
 });
