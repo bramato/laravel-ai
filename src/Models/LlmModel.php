@@ -5,6 +5,21 @@ namespace Bramato\LaravelAi\Models;
 use Illuminate\Database\Eloquent\Model;
 use Sushi\Sushi as SushiSushi;
 
+/**
+ * Represents an LLM model available through the package.
+ *
+ * This model uses Sushi to provide an Eloquent-like interface to a static array of model data.
+ * It includes information about provider, model ID, capabilities, and flags.
+ *
+ * @property string $provider The provider key (e.g., 'openai', 'google').
+ * @property string $model_id The unique model identifier used in API calls.
+ * @property string $description A brief description of the model.
+ * @property int $context_window The maximum number of tokens in the context window.
+ * @property bool $json_mode Indicates if the model supports a dedicated JSON output mode.
+ * @property bool $supports_vision Indicates if the model can process image input.
+ * @property int $max_output_tokens The maximum number of tokens the model can generate.
+ * @property bool $flagship Indicates if this model is considered a primary model for the provider.
+ */
 class LlmModel extends Model
 {
     use SushiSushi;
@@ -12,7 +27,7 @@ class LlmModel extends Model
     /**
      * The attributes that are mass assignable.
      *
-     * @var array<string>
+     * @var array<int, string>
      */
     protected $fillable = [
         'provider',
@@ -28,7 +43,7 @@ class LlmModel extends Model
     /**
      * The model's default values for attributes.
      *
-     * @var array<string, mixed>
+     * @var array<string, bool|null>
      */
     protected $attributes = [
         'json_mode' => false,
@@ -38,6 +53,8 @@ class LlmModel extends Model
 
     /**
      * The data for the models.
+     *
+     * This array acts as the "database table" for the Sushi model.
      *
      * @var array<int, array<string, mixed>>
      */
@@ -51,7 +68,7 @@ class LlmModel extends Model
             'json_mode' => true, // Function Calling (Strict), Structured Outputs (Chat Completions)
             'supports_vision' => true, // Solo Input
             'max_output_tokens' => 32768,
-            'flagship' => true,
+            'flagship' => false,
         ],
         [
             'provider' => 'openai',
@@ -71,7 +88,7 @@ class LlmModel extends Model
             'json_mode' => true, // Function Calling (Strict), Structured Outputs (Chat Completions)
             'supports_vision' => true, // Solo Input
             'max_output_tokens' => 32768,
-            'flagship' => false,
+            'flagship' => true,
         ],
         [
             'provider' => 'openai',
@@ -304,7 +321,12 @@ class LlmModel extends Model
         'flagship' => 'boolean',
     ];
 
-    // Sushi specific: Define schema if needed for type hints or relationships
+    /**
+     * Get the table schema represented by this model's properties.
+     * Used by Sushi for proper type handling.
+     *
+     * @return array<string, string>
+     */
     public function getSchema(): array
     {
         return [
@@ -319,10 +341,10 @@ class LlmModel extends Model
         ];
     }
 
-    // Static methods to get flagship models
-
     /**
      * Get the flagship OpenAI model.
+     *
+     * @return static|null The flagship LlmModel instance for OpenAI, or null if not found.
      */
     public static function openAiFlagship(): ?self
     {
@@ -331,6 +353,8 @@ class LlmModel extends Model
 
     /**
      * Get the flagship Google Gemini model.
+     *
+     * @return static|null The flagship LlmModel instance for Google, or null if not found.
      */
     public static function geminiFlagship(): ?self
     {
@@ -339,6 +363,8 @@ class LlmModel extends Model
 
     /**
      * Get the flagship Anthropic Claude model.
+     *
+     * @return static|null The flagship LlmModel instance for Anthropic, or null if not found.
      */
     public static function claudeFlagship(): ?self
     {
@@ -347,6 +373,8 @@ class LlmModel extends Model
 
     /**
      * Get the flagship DeepSeek model.
+     *
+     * @return static|null The flagship LlmModel instance for DeepSeek, or null if not found.
      */
     public static function deepSeekFlagship(): ?self
     {

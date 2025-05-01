@@ -82,7 +82,7 @@ class ImageDescriptionServiceTest extends TestCase
                 ->withArgs(function (ChatRequest $request) use ($fakeImageContent) {
                     $this->assertStringContainsString('Describe this image', $request->prompt);
                     $this->assertCount(1, $request->images ?? []);
-                    $expectedBase64 = 'data:image/png;base64,'.base64_encode($fakeImageContent);
+                    $expectedBase64 = 'data:image/png;base64,' . base64_encode($fakeImageContent);
                     $this->assertEquals($expectedBase64, $request->images[0]);
 
                     return true;
@@ -95,7 +95,7 @@ class ImageDescriptionServiceTest extends TestCase
 
         $this->assertInstanceOf(ImageDescriptionResponseDto::class, $result);
         $this->assertEquals($description, $result->description);
-        Http::assertSent(fn (Request $request) => $request->url() === $imageUrl);
+        Http::assertSent(fn(Request $request) => $request->url() === $imageUrl);
     }
 
     /** @test */
@@ -103,7 +103,7 @@ class ImageDescriptionServiceTest extends TestCase
     {
         $description = 'Description from local path.';
         // Use Orchestra Testbench's fixture path if available, or create a dummy file
-        $fixturePath = __DIR__.'/../Fixtures/test_image.webp'; // Assuming a fixture exists
+        $fixturePath = __DIR__ . '/../Fixtures/test_image.webp'; // Assuming a fixture exists
         if (! file_exists(dirname($fixturePath))) {
             mkdir(dirname($fixturePath), 0777, true);
         }
@@ -241,6 +241,6 @@ class ImageDescriptionServiceTest extends TestCase
 
         $this->assertInstanceOf(ImageDescriptionResponseDto::class, $result);
         $this->assertEquals('Image description not available.', $result->description);
-        Http::assertSent(fn (Request $request) => $request->url() === $imageUrl);
+        Http::assertSent(fn(Request $request) => $request->url() === $imageUrl);
     }
 }

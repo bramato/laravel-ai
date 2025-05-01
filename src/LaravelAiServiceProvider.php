@@ -37,7 +37,7 @@ class LaravelAiServiceProvider extends ServiceProvider implements DeferrableProv
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__.'/../config/laravel-ai.php' => config_path('laravel-ai.php'),
+                __DIR__ . '/../config/laravel-ai.php' => config_path('laravel-ai.php'),
             ], 'laravel-ai-config'); // Use a more specific tag
 
             // --- Commented out placeholder publish groups ---
@@ -76,7 +76,7 @@ class LaravelAiServiceProvider extends ServiceProvider implements DeferrableProv
     public function register(): void
     {
         // Merge the default package config with the application's published version.
-        $this->mergeConfigFrom(__DIR__.'/../config/laravel-ai.php', 'laravel-ai');
+        $this->mergeConfigFrom(__DIR__ . '/../config/laravel-ai.php', 'laravel-ai');
 
         // Bind the Manager as a singleton.
         $this->app->singleton(LaravelAiManager::class, function ($app) {
