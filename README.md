@@ -410,3 +410,113 @@ Please review [our security policy](../../security/policy) on how to report secu
 ## License
 
 The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+
+### Simple Chat Helpers
+
+For quick interactions, you can use the `ask` and `askWithSystem` static methods directly on the `LaravelAi` facade. These methods handle the creation of the request and return only the content string from the response.
+
+```php
+use Bramato\LaravelAi\Facades\LaravelAi;
+use Bramato\LaravelAi\Models\LlmModel;
+
+// Simple question using the default provider/model
+$answer = LaravelAi::ask('What is Laravel?');
+
+// Simple question with a system message
+$story = LaravelAi::askWithSystem(
+    'Write a short story about a robot.',
+    'You are a creative storyteller.'
+);
+
+// Simple question using a specific model
+$geminiFlash = LlmModel::getGeminiFlash(); // Assuming you have this static helper
+$specificAnswer = LaravelAi::ask('Translate "hello" to French.', $geminiFlash);
+
+// Passing additional options (e.g., temperature)
+$creativeAnswer = LaravelAi::ask(
+    'Suggest three names for a new tech startup.',
+    options: ['temperature' => 0.9]
+);
+```
+
+### JSON Extraction Helper
+
+To easily extract structured data (JSON) from a piece of text, use the `extractJson` helper. It instructs the LLM to return JSON based on your instructions and automatically attempts to parse the response.
+
+```php
+use Bramato\LaravelAi\Facades\LaravelAi;
+use Bramato\LaravelAi\Models\LlmModel;
+
+$text = "User John Doe (age 30) lives in New York. His email is john.doe@example.com.";
+$instruction = "Extract the user's name, age, and email address.";
+
+// Extract using the default provider/model
+$extractedData = LaravelAi::extractJson($instruction, $text);
+
+// $extractedData might look like: ['name' => 'John Doe', 'age' => 30, 'email' => 'john.doe@example.com']
+
+if ($extractedData) {
+    echo "User Email: " . $extractedData['email'];
+} else {
+    echo "Failed to extract JSON data.";
+}
+
+// Extract using a specific model known for good JSON output
+$openaiJsonModel = LlmModel::getOpenAiGpt4Turbo(); // Example: Assuming you have this model
+$specificExtraction = LaravelAi::extractJson($instruction, $text, $openaiJsonModel);
+```
+
+The `extractJson` method returns an associative array on success, or `null` if the extraction fails (e.g., the LLM response wasn't valid JSON or an error occurred).
+
+### Translation Service
+
+For simple text translation, use the `TranslationService`.
+
+```php
+use Bramato\LaravelAi\Services\TranslationService;
+use Bramato\LaravelAi\Models\LlmModel;
+
+class CommunicationHelper
+{
+    public function __construct(private TranslationService $translator)
+    {}
+
+    public function translateToItalian(string $englishText): ?string
+    {
+        // Translate from English (auto-detected) to Italian
+        return $this->translator->translate(
+            text: $englishText,
+            targetLanguage: 'Italian'
+        );
+    }
+
+    public function translateFromGerman(string $germanText, string $targetLang = 'English'): ?string
+    {
+        // Translate explicitly from German to the target language
+        return $this->translator->translate(
+            text: $germanText,
+            targetLanguage: $targetLang,
+            sourceLanguage: 'German' // Specify source
+        );
+    }
+}
+
+// Example usage
+$helper = app(CommunicationHelper::class);
+
+$italianGreeting = $helper->translateToItalian('Hello, how are you?');
+echo "In Italian: " . $italianGreeting . "\n";
+
+$englishQuestion = $helper->translateFromGerman('Wo ist die Bibliothek?');
+echo "In English: " . $englishQuestion;
+```
+
+The `translate` method takes:
+
+-   `text` (string): The text to translate.
+-   `targetLanguage` (string): The language to translate into (e.g., "Spanish", "fr", "日本語").
+-   `sourceLanguage` (string|null): Optional. The language of the original text. If omitted, the LLM attempts auto-detection.
+-   `model` (LlmModel|null): Optional. A specific `LlmModel` to use.
+-   `options` (array): Optional. Provider-specific options.
+
+It returns the translated text string, or `null` if the translation fails or the result is empty.

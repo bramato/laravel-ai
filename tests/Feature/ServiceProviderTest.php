@@ -19,8 +19,7 @@ it('registers the main interface binding', function () {
 
     // Check if the facade alias resolves to the interface
     expect($this->app->bound('laravel-ai'))->toBeTrue();
-    expect($this->app->make('laravel-ai'))->toBeInstanceOf(LlmClientInterface::class);
-    expect($this->app->make(LlmClientInterface::class))->toBe($this->app->make('laravel-ai'));
+    expect($this->app->make('laravel-ai'))->toBeInstanceOf(\Bramato\LaravelAi\LaravelAiManager::class);
 });
 
 it('merges the configuration correctly', function () {
