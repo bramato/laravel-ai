@@ -37,10 +37,10 @@ class ClaudeClient implements LlmClientInterface
     protected const DEFAULT_MAX_TOKENS = 1024;
 
     /**
-     * @param HttpClientFactory $httpFactory The Laravel HTTP client factory.
-     * @param string $apiKey The Claude API key.
-     * @param string $model The default Claude model ID to use for requests.
-     * @param array $options Additional configuration options (e.g., base_uri, timeout, version).
+     * @param  HttpClientFactory  $httpFactory  The Laravel HTTP client factory.
+     * @param  string  $apiKey  The Claude API key.
+     * @param  string  $model  The default Claude model ID to use for requests.
+     * @param  array  $options  Additional configuration options (e.g., base_uri, timeout, version).
      *
      * @throws AuthenticationException If the API key is missing.
      * @throws InvalidArgumentException If the API version is missing.
@@ -59,6 +59,7 @@ class ClaudeClient implements LlmClientInterface
      * Configures the HTTP client with base URI and required Claude headers.
      *
      * @return PendingRequest The configured HTTP client.
+     *
      * @throws AuthenticationException If API key is missing.
      * @throws InvalidArgumentException If API version is missing.
      */
@@ -88,8 +89,9 @@ class ClaudeClient implements LlmClientInterface
     /**
      * Sends a chat request to the Claude API's /messages endpoint.
      *
-     * @param ChatRequest $request The DTO containing the prompt, history, system prompt, and options.
+     * @param  ChatRequest  $request  The DTO containing the prompt, history, system prompt, and options.
      * @return ChatResponse The DTO containing the API response.
+     *
      * @throws AuthenticationException If the API key is invalid or permissions are insufficient (401, 403).
      * @throws InvalidResponseException If the API response structure is invalid or indicates an error.
      * @throws LlmApiException For other API errors (rate limits, server errors, bad requests etc.).
@@ -161,8 +163,9 @@ class ClaudeClient implements LlmClientInterface
      * Handles mapping of system prompts, ensures message history alternates roles correctly,
      * includes the mandatory `max_tokens` parameter, and adds other supported options.
      *
-     * @param ChatRequest $request The request DTO.
+     * @param  ChatRequest  $request  The request DTO.
      * @return array The payload ready for JSON encoding.
+     *
      * @throws LlmApiException If the message sequence validation fails.
      */
     protected function buildPayload(ChatRequest $request): array
@@ -222,7 +225,7 @@ class ClaudeClient implements LlmClientInterface
         $payload['messages'][] = ['role' => 'user', 'content' => $request->prompt];
 
         // --- Add Other Options ---
-        if (!empty($request->options)) {
+        if (! empty($request->options)) {
             // Filter and add other supported Claude options.
             $allowedOptions = ['temperature', 'top_p', 'top_k', 'stop_sequences', 'stream']; // Added stream
             $payload += array_intersect_key($request->options, array_flip($allowedOptions));
@@ -238,7 +241,7 @@ class ClaudeClient implements LlmClientInterface
         }
 
         // Ensure max_tokens is always an integer (double-check after merging options).
-        if (!isset($payload['max_tokens']) || !is_int($payload['max_tokens'])) {
+        if (! isset($payload['max_tokens']) || ! is_int($payload['max_tokens'])) {
             $payload['max_tokens'] = self::DEFAULT_MAX_TOKENS;
         } elseif ($payload['max_tokens'] <= 0) {
             // Ensure max_tokens is positive, required by Claude
@@ -251,8 +254,8 @@ class ClaudeClient implements LlmClientInterface
     /**
      * Maps the successful Claude API response data array to the ChatResponse DTO.
      *
-     * @param array $responseData The decoded JSON response data from the API.
-     * @param bool $wasJsonModeRequested Indicates if the original request asked for JSON.
+     * @param  array  $responseData  The decoded JSON response data from the API.
+     * @param  bool  $wasJsonModeRequested  Indicates if the original request asked for JSON.
      * @return ChatResponse The populated response DTO.
      */
     protected function mapResponseToDTO(array $responseData, bool $wasJsonModeRequested): ChatResponse
@@ -269,7 +272,7 @@ class ClaudeClient implements LlmClientInterface
         }
 
         $decodedJson = null;
-        if ($wasJsonModeRequested && !empty($content)) {
+        if ($wasJsonModeRequested && ! empty($content)) {
             // Tentativo di estrarre il blocco JSON delimitato da ```json ... ```
             if (preg_match('/```json\s*({.*?})\s*```/s', $content, $matches)) {
                 $jsonString = $matches[1]; // Estrae il contenuto tra le parentesi graffe
@@ -296,14 +299,15 @@ class ClaudeClient implements LlmClientInterface
             'usage' => $responseData['usage'] ?? null,
             'isJson' => $wasJsonModeRequested && ($decodedJson !== null),
             'decodedJsonContent' => $decodedJson,
-            'rawResponse' => $responseData
+            'rawResponse' => $responseData,
         ]);
     }
 
     /**
      * Handles non-successful (non-401/403) HTTP responses from Claude.
      *
-     * @param Response $response The failed HTTP response.
+     * @param  Response  $response  The failed HTTP response.
+     *
      * @throws LlmApiException Mapped API error based on Claude error types.
      */
     protected function handleErrorResponse(Response $response): void
@@ -337,7 +341,7 @@ class ClaudeClient implements LlmClientInterface
      * Checks for essential fields like id, model, content array, stop_reason, and usage.
      * Does not validate error structures here, as that implies failure.
      *
-     * @param array|null $responseData The decoded JSON data from the response.
+     * @param  array|null  $responseData  The decoded JSON data from the response.
      * @return bool True if the structure seems valid for a successful response, false otherwise.
      */
     protected function isValidResponseStructure(?array $responseData): bool

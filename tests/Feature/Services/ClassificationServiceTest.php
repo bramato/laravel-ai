@@ -2,8 +2,6 @@
 
 namespace Bramato\LaravelAi\Tests\Feature\Services;
 
-use Bramato\LaravelAi\Contracts\LlmClientInterface;
-use Bramato\LaravelAi\DTOs\ChatRequest;
 use Bramato\LaravelAi\DTOs\ChatResponse;
 use Bramato\LaravelAi\LaravelAiManager;
 use Bramato\LaravelAi\Models\LlmModel;
@@ -46,6 +44,7 @@ class ClassificationServiceTest extends TestCase
                     foreach ($categories as $category) {
                         $this->assertStringContainsString("- {$category}", $systemMessage);
                     }
+
                     return true;
                 })
                 ->andReturn($expectedCategory);
@@ -82,7 +81,7 @@ class ClassificationServiceTest extends TestCase
     public function it_returns_null_if_llm_call_fails(): void
     {
         // Mock report helper if not already mocked globally
-        if (!function_exists('Bramato\LaravelAi\Services\report')) {
+        if (! function_exists('Bramato\LaravelAi\Services\report')) {
             eval('namespace Bramato\LaravelAi\Services; function report($exception) { /* No-op for test */ } ');
         }
 
@@ -137,6 +136,7 @@ class ClassificationServiceTest extends TestCase
                     // Check if the correct model and options were passed through
                     $this->assertSame($model, $passedModel);
                     $this->assertEquals($options, $passedOptions);
+
                     return true;
                 })
                 ->andReturn($expectedCategory);

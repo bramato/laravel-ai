@@ -2,6 +2,40 @@
 
 All notable changes to `bramato/laravel-ai` will be documented in this file.
 
+## [1.3.0] - 2025-XX-XX
+
+### Added
+
+-   **Helper Services:** Introduced dedicated services for common AI tasks:
+    -   `ClassificationService`: Classifies text into predefined categories.
+    -   `SummarizationService`: Generates text summaries with optional format and length constraints.
+    -   `TranslationService`: Provides simple text translation with optional source language detection.
+    -   `MultiTranslationService`: Translates text into multiple target languages simultaneously using a single LLM call (requires JSON mode support).
+    -   `ImageDescriptionService`: Generates descriptions for images (from path, URL, or UploadedFile) using OpenAI Vision.
+-   **BaseAiService:** Added an abstract base class for common service dependencies.
+-   **Language Enum:** Created `Enums\Language` for standardized language codes.
+-   **New DTOs:** Added `MultiTranslateResponseDto` and `ImageDescriptionResponseDto`.
+-   **Image Support Core:**
+    -   Added `images` property to `ChatRequest` DTO.
+    -   Modified `OpenAiClient` to handle image inputs (URLs and base64 data URIs) for vision models.
+-   **Service Interfaces:** Added `ImageDescriptionServiceInterface`.
+-   Feature tests for `ClassificationService`, `SummarizationService`, `TranslationService`, `MultiTranslationService`, and `ImageDescriptionService`.
+-   Documentation sections in `README.md` for all new services.
+
+### Changed
+
+-   `LlmClientInterface::chat()` PHPDoc updated to reflect `images` support in `ChatRequest`.
+-   Services (`ClassificationService`, `SummarizationService`, `TranslationService`) now extend `BaseAiService`.
+
+## [1.2.0] - 2025-XX-XX
+
+### Added
+
+-   **Simple Chat Helpers:** Implemented `ask()` and `askWithSystem()` methods on `LaravelAiManager` (accessible via `LaravelAi` Facade) for quick, stateless chat interactions returning only the content string.
+-   **JSON Extraction Helper:** Implemented `extractJson()` method on `LaravelAiManager` (accessible via `LaravelAi` Facade) to easily extract structured JSON data from text using an LLM.
+-   Feature tests for Simple Chat Helpers (`SimpleChatHelperTest.php`) and JSON Extraction Helper (`JsonExtractionHelperTest.php`).
+-   Documentation sections in `README.md` for the new helper methods.
+
 ## [1.1.0] - 2025-XX-XX
 
 ### Added

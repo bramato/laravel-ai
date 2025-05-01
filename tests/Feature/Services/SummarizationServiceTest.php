@@ -13,8 +13,8 @@ class SummarizationServiceTest extends TestCase
     /** @test */
     public function it_can_summarize_text(): void
     {
-        $text = "This is a long text about Laravel and its components that needs summarization.";
-        $expectedSummary = "Laravel text summary.";
+        $text = 'This is a long text about Laravel and its components that needs summarization.';
+        $expectedSummary = 'Laravel text summary.';
 
         $mockManager = $this->mock(LaravelAiManager::class, function (MockInterface $mock) use ($expectedSummary, $text) {
             $mock->shouldReceive('askWithSystem')
@@ -25,6 +25,7 @@ class SummarizationServiceTest extends TestCase
                     // Check default constraints are not added
                     $this->assertStringNotContainsString('format of:', $systemMessage);
                     $this->assertStringNotContainsString('length of approximately', $systemMessage);
+
                     return true;
                 })
                 ->andReturn($expectedSummary);
@@ -39,8 +40,8 @@ class SummarizationServiceTest extends TestCase
     /** @test */
     public function it_can_summarize_text_with_format_and_length(): void
     {
-        $text = "Another long text.";
-        $format = "bullet points";
+        $text = 'Another long text.';
+        $format = 'bullet points';
         $length = 50;
         $expectedSummary = "- Point 1\n- Point 2";
 
@@ -51,6 +52,7 @@ class SummarizationServiceTest extends TestCase
                     $this->assertStringContainsString($text, $prompt);
                     $this->assertStringContainsString("format of: {$format}", $systemMessage);
                     $this->assertStringContainsString("length of approximately {$length}", $systemMessage);
+
                     return true;
                 })
                 ->andReturn($expectedSummary);
@@ -65,7 +67,7 @@ class SummarizationServiceTest extends TestCase
     /** @test */
     public function it_returns_null_if_llm_returns_empty_string(): void
     {
-        $text = "Some text.";
+        $text = 'Some text.';
 
         $mockManager = $this->mock(LaravelAiManager::class, function (MockInterface $mock) {
             $mock->shouldReceive('askWithSystem')->once()->andReturn('   '); // Empty or whitespace
@@ -81,11 +83,11 @@ class SummarizationServiceTest extends TestCase
     public function it_returns_null_if_llm_call_fails(): void
     {
         // Mock report helper if not already mocked globally
-        if (!function_exists('Bramato\LaravelAi\Services\report')) {
+        if (! function_exists('Bramato\LaravelAi\Services\report')) {
             eval('namespace Bramato\LaravelAi\Services; function report($exception) { /* No-op for test */ } ');
         }
 
-        $text = "Some text.";
+        $text = 'Some text.';
 
         $mockManager = $this->mock(LaravelAiManager::class, function (MockInterface $mock) {
             $mock->shouldReceive('askWithSystem')->once()->andThrow(new \Exception('API Error'));
@@ -110,8 +112,8 @@ class SummarizationServiceTest extends TestCase
     /** @test */
     public function it_uses_specific_model_and_options(): void
     {
-        $text = "Text to summarize with specific model.";
-        $expectedSummary = "Specific summary.";
+        $text = 'Text to summarize with specific model.';
+        $expectedSummary = 'Specific summary.';
         $model = new LlmModel(['provider' => 'openai', 'model_id' => 'gpt-4o-mini']);
         $options = ['temperature' => 0.5];
 
@@ -121,6 +123,7 @@ class SummarizationServiceTest extends TestCase
                 ->withArgs(function (string $prompt, string $systemMessage, ?LlmModel $passedModel, array $passedOptions) use ($model, $options) {
                     $this->assertSame($model, $passedModel);
                     $this->assertEquals($options, $passedOptions);
+
                     return true;
                 })
                 ->andReturn($expectedSummary);

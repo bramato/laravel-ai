@@ -13,8 +13,11 @@ use InvalidArgumentException;
 class LaravelAiManager
 {
     protected Application $app;
+
     protected HttpClientFactory $http;
+
     protected array $config;
+
     protected array $clients = []; // Cache for resolved clients
 
     public function __construct(Application $app, HttpClientFactory $http, array $config)
@@ -26,8 +29,6 @@ class LaravelAiManager
 
     /**
      * Get the default LLM provider client instance.
-     *
-     * @return LlmClientInterface
      */
     public function defaultClient(): LlmClientInterface
     {
@@ -37,25 +38,25 @@ class LaravelAiManager
     /**
      * Get a specific LLM provider client instance.
      *
-     * @param string $name The name of the provider (e.g., 'openai', 'gemini').
-     * @return LlmClientInterface
+     * @param  string  $name  The name of the provider (e.g., 'openai', 'gemini').
+     *
      * @throws InvalidArgumentException If the provider is not configured or cannot be resolved.
      */
     public function provider(string $name): LlmClientInterface
     {
         $name = $name ?: $this->getDefaultProvider();
 
-        if (!isset($this->clients[$name])) {
+        if (! isset($this->clients[$name])) {
             // Use the container to resolve the client via its specific binding
             try {
                 $this->clients[$name] = $this->app->make("laravel-ai.client.{$name}");
             } catch (\Illuminate\Contracts\Container\BindingResolutionException $e) {
                 // Catch potential resolution errors (e.g., provider not configured correctly in SP)
-                throw new InvalidArgumentException("Could not resolve LLM client for provider [{$name}]. Ensure it is configured correctly. Original error: " . $e->getMessage(), 0, $e);
+                throw new InvalidArgumentException("Could not resolve LLM client for provider [{$name}]. Ensure it is configured correctly. Original error: ".$e->getMessage(), 0, $e);
             }
 
             // Ensure the resolved instance implements the correct interface
-            if (!$this->clients[$name] instanceof LlmClientInterface) {
+            if (! $this->clients[$name] instanceof LlmClientInterface) {
                 throw new InvalidArgumentException("Resolved client for provider [{$name}] does not implement LlmClientInterface.");
             }
         }
@@ -65,9 +66,6 @@ class LaravelAiManager
 
     /**
      * Send a chat request to the default LLM provider.
-     *
-     * @param ChatRequest $request
-     * @return ChatResponse
      */
     public function chat(ChatRequest $request): ChatResponse
     {
@@ -78,9 +76,9 @@ class LaravelAiManager
      * Ask a simple question to the default provider or a specific model.
      * Returns only the content string.
      *
-     * @param string $prompt The user's question or instruction.
-     * @param LlmModel|null $model Optional: Specific LlmModel to use. Overrides default.
-     * @param array $options Optional: Provider-specific options.
+     * @param  string  $prompt  The user's question or instruction.
+     * @param  LlmModel|null  $model  Optional: Specific LlmModel to use. Overrides default.
+     * @param  array  $options  Optional: Provider-specific options.
      * @return string The assistant's response content.
      */
     public function ask(string $prompt, ?LlmModel $model = null, array $options = []): string
@@ -92,10 +90,10 @@ class LaravelAiManager
      * Ask a simple question with a system message.
      * Returns only the content string.
      *
-     * @param string $prompt The user's question or instruction.
-     * @param string $systemMessage The system message.
-     * @param LlmModel|null $model Optional: Specific LlmModel to use. Overrides default.
-     * @param array $options Optional: Provider-specific options.
+     * @param  string  $prompt  The user's question or instruction.
+     * @param  string  $systemMessage  The system message.
+     * @param  LlmModel|null  $model  Optional: Specific LlmModel to use. Overrides default.
+     * @param  array  $options  Optional: Provider-specific options.
      * @return string The assistant's response content.
      */
     public function askWithSystem(string $prompt, string $systemMessage, ?LlmModel $model = null, array $options = []): string
@@ -106,10 +104,10 @@ class LaravelAiManager
     /**
      * Extracts JSON from text using the default provider or a specific model.
      *
-     * @param string $instruction A prompt explaining what to extract (e.g., "Extract user details").
-     * @param string $text The text to extract JSON from.
-     * @param LlmModel|null $model Optional: Specific LlmModel to use. Overrides default.
-     * @param array $options Optional: Provider-specific options.
+     * @param  string  $instruction  A prompt explaining what to extract (e.g., "Extract user details").
+     * @param  string  $text  The text to extract JSON from.
+     * @param  LlmModel|null  $model  Optional: Specific LlmModel to use. Overrides default.
+     * @param  array  $options  Optional: Provider-specific options.
      * @return array|null The extracted data as an associative array, or null on failure.
      */
     public function extractJson(string $instruction, string $text, ?LlmModel $model = null, array $options = []): ?array
@@ -208,6 +206,7 @@ PROMPT;
         } catch (\Exception $e) {
             // Log the exception maybe?
             report($e); // Using Laravel's report helper
+
             return null; // Return null on any error during the API call or processing
         }
     }
@@ -216,15 +215,13 @@ PROMPT;
      * Get the configuration for a specific provider.
      * Made public to be used by the Service Provider's client bindings.
      *
-     * @param string $name
-     * @return array
      * @throws InvalidArgumentException
      */
     public function getProviderConfig(string $name): array
     {
         $providerKey = ($name === 'anthropic') ? 'claude' : $name; // Handle potential alias internally if needed
 
-        if (!isset($this->config['providers'][$providerKey])) {
+        if (! isset($this->config['providers'][$providerKey])) {
             throw new InvalidArgumentException("LLM provider [{$name}] (using key '{$providerKey}') is not configured.");
         }
 
@@ -233,8 +230,6 @@ PROMPT;
 
     /**
      * Get the default provider name.
-     *
-     * @return string
      */
     protected function getDefaultProvider(): string
     {

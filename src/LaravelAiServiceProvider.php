@@ -7,9 +7,12 @@ namespace Bramato\LaravelAi;
 // use Bramato\LaravelAi\Clients\DeepSeekClient;
 // use Bramato\LaravelAi\Clients\GeminiClient;
 // use Bramato\LaravelAi\Clients\OpenAiClient;
+use Bramato\LaravelAi\Contracts\ImageDescriptionServiceInterface;
 use Bramato\LaravelAi\Contracts\LlmClientInterface;
 use Bramato\LaravelAi\Services\ChatService;
 use Bramato\LaravelAi\Services\ClassificationService;
+use Bramato\LaravelAi\Services\ImageDescriptionService;
+use Bramato\LaravelAi\Services\MultiTranslationService;
 use Bramato\LaravelAi\Services\SummarizationService;
 use Bramato\LaravelAi\Services\TranslationService;
 use Illuminate\Contracts\Support\DeferrableProvider;
@@ -29,14 +32,12 @@ class LaravelAiServiceProvider extends ServiceProvider implements DeferrableProv
      * Bootstrap any application services.
      *
      * Handles publishing the configuration file when running in the console.
-     *
-     * @return void
      */
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__ . '/../config/laravel-ai.php' => config_path('laravel-ai.php'),
+                __DIR__.'/../config/laravel-ai.php' => config_path('laravel-ai.php'),
             ], 'laravel-ai-config'); // Use a more specific tag
 
             // --- Commented out placeholder publish groups ---
@@ -70,13 +71,12 @@ class LaravelAiServiceProvider extends ServiceProvider implements DeferrableProv
      * for the LlmClientInterface using a factory pattern based on the
      * configured default provider.
      *
-     * @return void
      * @throws \InvalidArgumentException If configuration is missing or invalid.
      */
     public function register(): void
     {
         // Merge the default package config with the application's published version.
-        $this->mergeConfigFrom(__DIR__ . '/../config/laravel-ai.php', 'laravel-ai');
+        $this->mergeConfigFrom(__DIR__.'/../config/laravel-ai.php', 'laravel-ai');
 
         // Bind the Manager as a singleton.
         $this->app->singleton(LaravelAiManager::class, function ($app) {
@@ -114,6 +114,23 @@ class LaravelAiServiceProvider extends ServiceProvider implements DeferrableProv
             return new TranslationService($app->make(LaravelAiManager::class));
         });
 
+        // Bind the MultiTranslationService (not as singleton)
+        $this->app->bind(MultiTranslationService::class, function ($app) {
+            return new MultiTranslationService($app->make(LaravelAiManager::class));
+        });
+
+        // Bind the ImageDescriptionService interface to implementation
+        $this->app->bind(ImageDescriptionServiceInterface::class, function ($app) {
+            // Requires OpenAiClient specifically, as per current implementation
+            // Need to resolve OpenAiClient correctly
+            $openAiClient = $app->make('laravel-ai.client.openai'); // Use the specific client binding
+
+            return new ImageDescriptionService(
+                $openAiClient,
+                $app->make(HttpClientFactory::class)
+            );
+        });
+
         // Bind individual client builders, resolved via the Manager
         $this->bindClient('openai', Clients\OpenAiClient::class);
         $this->bindClient('gemini', Clients\GeminiClient::class);
@@ -125,9 +142,8 @@ class LaravelAiServiceProvider extends ServiceProvider implements DeferrableProv
     /**
      * Helper method to bind a specific client implementation.
      *
-     * @param string $name The provider name (key in config)
-     * @param string $class The FQCN of the client class
-     * @return void
+     * @param  string  $name  The provider name (key in config)
+     * @param  string  $class  The FQCN of the client class
      */
     protected function bindClient(string $name, string $class): void
     {
@@ -144,7 +160,7 @@ class LaravelAiServiceProvider extends ServiceProvider implements DeferrableProv
             }
 
             // Ensure the class exists before trying to instantiate
-            if (!class_exists($class)) {
+            if (! class_exists($class)) {
                 throw new InvalidArgumentException("Client class '{$class}' not found for provider '{$name}'.");
             }
 
@@ -173,7 +189,7 @@ class LaravelAiServiceProvider extends ServiceProvider implements DeferrableProv
             $clientBindings[] = "laravel-ai.client.{$providerName}";
         }
         // Ensure anthropic alias is included if claude is configured
-        if (isset($config['providers']['claude']) && !in_array('laravel-ai.client.anthropic', $clientBindings)) {
+        if (isset($config['providers']['claude']) && ! in_array('laravel-ai.client.anthropic', $clientBindings)) {
             $clientBindings[] = 'laravel-ai.client.anthropic';
         }
 
@@ -185,6 +201,8 @@ class LaravelAiServiceProvider extends ServiceProvider implements DeferrableProv
             ClassificationService::class,
             SummarizationService::class,
             TranslationService::class,
+            MultiTranslationService::class,
+            ImageDescriptionServiceInterface::class,
         ], $clientBindings);
     }
 }

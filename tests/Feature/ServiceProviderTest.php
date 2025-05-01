@@ -9,17 +9,17 @@ use Illuminate\Support\Facades\File;
 
 it('loads the service provider', function () {
     // Check if the provider is loaded by Testbench
-    $loadedProviders = $this->app->getLoadedProviders();
+    $loadedProviders = test()->app->getLoadedProviders();
     expect($loadedProviders[LaravelAiServiceProvider::class])->toBeTrue();
 });
 
 it('registers the main interface binding', function () {
     // Check if the interface is bound in the container
-    expect($this->app->bound(LlmClientInterface::class))->toBeTrue();
+    expect(test()->app->bound(LlmClientInterface::class))->toBeTrue();
 
     // Check if the facade alias resolves to the interface
-    expect($this->app->bound('laravel-ai'))->toBeTrue();
-    expect($this->app->make('laravel-ai'))->toBeInstanceOf(\Bramato\LaravelAi\LaravelAiManager::class);
+    expect(test()->app->bound('laravel-ai'))->toBeTrue();
+    expect(test()->app->make('laravel-ai'))->toBeInstanceOf(\Bramato\LaravelAi\LaravelAiManager::class);
 });
 
 it('merges the configuration correctly', function () {

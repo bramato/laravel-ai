@@ -15,13 +15,11 @@ class ChatRequest extends ValidatedDTO
 {
     /**
      * The main user prompt or message for the LLM.
-     * @var string
      */
     public string $prompt;
 
     /**
      * An optional system message to guide the model's behavior, persona, or output format.
-     * @var string|null
      */
     public ?string $systemMessage;
 
@@ -30,7 +28,6 @@ class ChatRequest extends ValidatedDTO
      * Each element should be an associative array: ['role' => string, 'content' => string].
      * Roles are typically 'user' and 'assistant'.
      * Note: Provider-specific role requirements (e.g., alternation) apply.
-     * @var array
      */
     public array $history;
 
@@ -38,7 +35,6 @@ class ChatRequest extends ValidatedDTO
      * An array of additional options to pass to the specific LLM provider's API.
      * Examples: ['temperature' => 0.7, 'max_tokens' => 500].
      * Refer to provider documentation for supported options.
-     * @var array
      */
     public array $options;
 
@@ -47,9 +43,17 @@ class ChatRequest extends ValidatedDTO
      * If true, the client will attempt to configure the API request for JSON
      * (where supported) and parse the response content as JSON.
      * Note: For some providers (like Claude), this requires specific prompt instructions.
-     * @var bool
      */
     public bool $jsonMode;
+
+    /**
+     * Optional array of image sources (URLs or base64 data URIs) to include with the prompt.
+     * Currently primarily intended for use with vision-capable models (e.g., OpenAI GPT-4 Vision).
+     * Example: ['https://example.com/image.jpg', 'data:image/png;base64,iVBORw...']
+     *
+     * @var array<int, string>|null
+     */
+    public ?array $images;
 
     /**
      * Defines the validation rules for the DTO properties.
@@ -67,6 +71,8 @@ class ChatRequest extends ValidatedDTO
             'history.*.content' => ['required_with:history', 'string'],
             'options' => ['sometimes', 'array'],
             'jsonMode' => ['sometimes', 'boolean'],
+            'images' => ['sometimes', 'nullable', 'array'], // Validate it's an array if present
+            'images.*' => ['required_with:images', 'string', 'min:10'], // Basic check: each item is a non-empty string (URL or base64)
         ];
     }
 
@@ -82,6 +88,7 @@ class ChatRequest extends ValidatedDTO
             'history' => [],
             'options' => [],
             'jsonMode' => false,
+            'images' => null, // Default images to null
         ];
     }
 
@@ -93,9 +100,10 @@ class ChatRequest extends ValidatedDTO
     protected function casts(): array
     {
         return [
-            'history' => new ArrayCast(),
-            'options' => new ArrayCast(),
-            'jsonMode' => new BooleanCast(),
+            'history' => new ArrayCast,
+            'options' => new ArrayCast,
+            'jsonMode' => new BooleanCast,
+            // 'images' doesn't strictly need a cast if it remains nullable array of strings
         ];
     }
 }

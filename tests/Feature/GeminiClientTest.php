@@ -27,7 +27,6 @@ beforeEach(function () use ($apiVersion, $model, $apiKey) {
     config()->set('laravel-ai.providers.gemini.options', ['version' => $apiVersion]); // Ensure v1beta
 });
 
-
 it('can get successful response via interface', function () use ($fullApiUrlPattern, $model) {
     $fakeUsage = ['promptTokenCount' => 10, 'candidatesTokenCount' => 20, 'totalTokenCount' => 30];
     // Uses global helper: getFakeGeminiSuccessResponse
@@ -69,7 +68,7 @@ it('throws AuthenticationException on 403 error', function () use ($fullApiUrlPa
     $client = app(LlmClientInterface::class);
     $request = new ChatRequest(['prompt' => 'Test Gemini Auth']);
 
-    expect(fn() => $client->chat($request))
+    expect(fn () => $client->chat($request))
         ->toThrow(AuthenticationException::class, 'API key not valid. Please pass a valid API key.');
 });
 
@@ -83,7 +82,7 @@ it('throws LlmApiException on 400 error (e.g., invalid argument)', function () u
     $client = app(LlmClientInterface::class);
     $request = new ChatRequest(['prompt' => 'Test Gemini Bad Request']);
 
-    expect(fn() => $client->chat($request))
+    expect(fn () => $client->chat($request))
         ->toThrow(LlmApiException::class, 'Gemini API Error - Bad Request (INVALID_ARGUMENT): Invalid model specified');
 });
 
@@ -103,7 +102,7 @@ it('throws InvalidResponseException when response is blocked by safety settings'
     $client = app(LlmClientInterface::class);
     $request = new ChatRequest(['prompt' => 'Risky prompt']);
 
-    expect(fn() => $client->chat($request))
+    expect(fn () => $client->chat($request))
         ->toThrow(InvalidResponseException::class, 'Gemini request blocked due to safety settings: SAFETY.');
 });
 
@@ -126,7 +125,7 @@ it('throws InvalidResponseException on malformed success response (missing text)
     $client = app(LlmClientInterface::class);
     $request = new ChatRequest(['prompt' => 'Test Gemini Malformed']);
 
-    expect(fn() => $client->chat($request))
+    expect(fn () => $client->chat($request))
         ->toThrow(InvalidResponseException::class, 'Invalid or incomplete response structure received from Gemini API.');
 });
 

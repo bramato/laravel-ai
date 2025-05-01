@@ -7,6 +7,7 @@ use Bramato\LaravelAi\DTOs\ChatResponse;
 use Bramato\LaravelAi\Exceptions\AuthenticationException;
 use Bramato\LaravelAi\Exceptions\InvalidResponseException;
 use Bramato\LaravelAi\Exceptions\LlmApiException;
+
 // use Bramato\LaravelAi\Exceptions\LlmApiException; // Exception to be created later
 
 /**
@@ -19,7 +20,7 @@ interface LlmClientInterface
     /**
      * Sends a chat request to the configured LLM provider.
      *
-     * @param ChatRequest $request The DTO containing the request details (prompt, history, options, etc.).
+     * @param  ChatRequest  $request  The DTO containing the request details (prompt, images, history, options, etc.).
      * @return ChatResponse The DTO containing the model's response and metadata.
      *
      * @throws AuthenticationException If authentication fails (e.g., invalid API key).

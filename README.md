@@ -520,3 +520,134 @@ The `translate` method takes:
 -   `options` (array): Optional. Provider-specific options.
 
 It returns the translated text string, or `null` if the translation fails or the result is empty.
+
+### Multi-Language Translation Service
+
+If you need to translate a single piece of text into multiple languages simultaneously using one LLM call (requires a capable model like GPT-4 Turbo, Gemini 1.5 Pro, Claude 3 Opus supporting JSON mode), use the `MultiTranslationService`.
+
+```php
+use Bramato\LaravelAi\Services\MultiTranslationService;
+use Bramato\LaravelAi\Enums\Language;
+use Bramato\LaravelAi\Models\LlmModel;
+
+class AnnouncementBroadcaster
+{
+    public function __construct(private MultiTranslationService $translator)
+    {}
+
+    public function translateAnnouncement(string $announcement, ?string $sourceLang = null): ?array
+    {
+        $targetLanguages = [
+            Language::ENGLISH_US,
+            Language::SPANISH_SPAIN,
+            Language::GERMAN,
+            'fr', // Can also use ISO codes
+        ];
+
+        // Optionally select a powerful model known to handle JSON and multiple tasks well
+        // $model = LlmModel::where('model_id', 'gpt-4-turbo')->first();
+        $model = null; // Let the service select automatically
+
+        $responseDto = $this->translator->translate(
+            text: $announcement,
+            targets: $targetLanguages,
+            sourceLanguage: $sourceLang, // Null for auto-detect
+            model: $model
+        );
+
+        if ($responseDto) {
+            echo "Detected source language: " . $responseDto->sourceLanguage . "\n";
+            // Returns an array like ['en_US' => '...', 'es_ES' => '...', 'de' => '...', 'fr' => '...']
+            // Values might be null if a specific language failed.
+            return $responseDto->translations;
+        } else {
+            echo "Multi-language translation failed.";
+            return null;
+        }
+    }
+}
+
+// Example usage
+$broadcaster = app(AnnouncementBroadcaster::class);
+$originalText = "Il nostro evento annuale si terrà la prossima settimana!"; // Italian
+
+$translations = $broadcaster->translateAnnouncement($originalText);
+
+if ($translations) {
+    print_r($translations);
+}
+```
+
+The `MultiTranslationService::translate()` method takes:
+
+-   `text` (string): The text to translate.
+-   `targets` (array): An array of target languages, consisting of `Language` enum cases or valid ISO language codes (e.g., `[Language::ITALIAN, 'de', 'en_US']`).
+-   `sourceLanguage` (string|null): Optional. The ISO code of the source language. If `null`, the service attempts auto-detection via a preliminary LLM call.
+-   `model` (LlmModel|null): Optional. A specific `LlmModel` instance to use. **Crucially, this model must support JSON output mode.** If `null`, the service attempts to select a suitable model automatically (e.g., flagship models supporting JSON).
+-   `options` (array): Optional. Provider-specific options for the main LLM call.
+
+It returns a `MultiTranslateResponseDto` object containing the detected/provided `sourceLanguage` and an associative array `translations` mapping target ISO codes to translated strings (or `null` on failure for that specific language). Returns `null` if the entire process fails (e.g., source detection failure, LLM error, invalid JSON response).
+
+**Note:** This service relies heavily on the LLM's ability to follow complex instructions and output structured JSON reliably. Performance and accuracy may vary significantly between models.
+
+### Image Description Service
+
+To generate a textual description of an image using OpenAI's vision capabilities (e.g., GPT-4o, GPT-4 Turbo), you can use the `ImageDescriptionService`. It accepts an image source as a local file path, a public URL, or a Laravel `UploadedFile` instance.
+
+**Note:** This currently relies on the `OpenAiClient` being configured with appropriate API keys and a vision-capable model (either as default or passed via options).
+
+```php
+use Bramato\LaravelAi\Contracts\ImageDescriptionServiceInterface;
+use Illuminate\Http\Request; // Example usage in a controller
+
+class ImageUploadController
+{
+    public function __construct(private ImageDescriptionServiceInterface $describer)
+    {}
+
+    public function handleUpload(Request $request): array
+    {
+        $request->validate(['image' => 'required|image|max:10240']); // Example validation
+
+        $uploadedFile = $request->file('image');
+        $localPath = '/path/to/your/local/image.jpg';
+        $imageUrl = 'https://example.com/some_image.png';
+
+        // Describe using UploadedFile
+        $descriptionDtoFile = $this->describer->describe($uploadedFile);
+
+        // Describe using local path
+        $descriptionDtoPath = $this->describer->describe($localPath);
+
+        // Describe using URL with a custom prompt
+        $descriptionDtoUrl = $this->describer->describe(
+            $imageUrl,
+            'What is the main subject of this image?'
+        );
+
+        return [
+            'from_file' => $descriptionDtoFile?->description,
+            'from_path' => $descriptionDtoPath?->description,
+            'from_url' => $descriptionDtoUrl?->description,
+            // Confidence and Tags are placeholders for now
+            'file_confidence' => $descriptionDtoFile?->confidence,
+            'file_tags' => $descriptionDtoFile?->tags,
+        ];
+    }
+}
+```
+
+The `describe` method takes:
+
+-   `imageSource` (string|UploadedFile): The image source (local path, URL, or `UploadedFile`).
+-   `prompt` (string|null): Optional. A custom prompt to guide the description. Defaults to "Describe this image.".
+-   `model` (LlmModel|null): Optional. A specific `LlmModel` known to support vision. If provided, its ID is passed to the `OpenAiClient`.
+-   `options` (array): Optional. Additional options passed directly to the `OpenAiClient`'s `chat` method.
+
+It returns an `ImageDescriptionResponseDto` object containing:
+
+-   `description` (string): The generated text description. Contains a fallback message on error.
+-   `confidence` (float|null): Currently `null` as this is not directly provided by the OpenAI Chat API.
+-   `tags` (array): Currently an empty array.
+
+Returns `null` only if an unrecoverable exception occurs during image processing before the API call. Otherwise, it returns the DTO with either the generated description or the fallback message.

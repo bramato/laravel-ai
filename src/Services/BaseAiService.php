@@ -14,7 +14,7 @@ abstract class BaseAiService
     /**
      * BaseService constructor.
      *
-     * @param LaravelAiManager $laravelAi The main AI manager instance.
+     * @param  LaravelAiManager  $laravelAi  The main AI manager instance.
      */
     public function __construct(LaravelAiManager $laravelAi)
     {

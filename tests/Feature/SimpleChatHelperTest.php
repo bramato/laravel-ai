@@ -9,7 +9,6 @@ use Bramato\LaravelAi\Facades\LaravelAi;
 use Bramato\LaravelAi\LaravelAiServiceProvider;
 use Bramato\LaravelAi\Models\LlmModel;
 use Mockery;
-use Mockery\MockInterface;
 use Orchestra\Testbench\TestCase;
 
 class SimpleChatHelperTest extends TestCase
@@ -34,7 +33,7 @@ class SimpleChatHelperTest extends TestCase
     private function createMockResponseData(string $content, string $model = 'mock-model'): array
     {
         return [
-            'id' => 'chatcmpl-' . uniqid(),
+            'id' => 'chatcmpl-'.uniqid(),
             'model' => $model,
             'content' => $content,
             'finishReason' => 'stop',
@@ -84,7 +83,7 @@ class SimpleChatHelperTest extends TestCase
                 return $request->prompt === 'Hello default'
                     && $request->systemMessage === null
                     && empty($request->history)
-                    && !isset($request->options['model']); // Default uses config model
+                    && ! isset($request->options['model']); // Default uses config model
             })
             ->andReturn(new ChatResponse($this->createMockResponseData($expectedResponse)));
 

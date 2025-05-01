@@ -175,4 +175,4 @@ function getFakeClaudeErrorResponse(string $type, string $message): array
 // function something(): string
 // {
 //     return 'helper';
-// } 
+// }

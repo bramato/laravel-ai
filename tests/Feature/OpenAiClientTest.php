@@ -86,7 +86,7 @@ it('throws AuthenticationException on 401 error', function () {
     $request = new ChatRequest(['prompt' => 'Test Auth Error']);
 
     // Expect the specific message from OpenAiClient handler
-    expect(fn() => $client->chat($request))->toThrow(AuthenticationException::class, 'Incorrect API key provided');
+    expect(fn () => $client->chat($request))->toThrow(AuthenticationException::class, 'Incorrect API key provided');
 });
 
 it('throws LlmApiException on 500 error', function () {
@@ -101,7 +101,7 @@ it('throws LlmApiException on 500 error', function () {
     $client = app(LlmClientInterface::class);
     $request = new ChatRequest(['prompt' => 'Test Server Error']);
 
-    expect(fn() => $client->chat($request))->toThrow(LlmApiException::class, 'OpenAI API Error - Internal Server Error (internal_server_error): The server had an error');
+    expect(fn () => $client->chat($request))->toThrow(LlmApiException::class, 'OpenAI API Error - Internal Server Error (internal_server_error): The server had an error');
 });
 
 it('throws InvalidResponseException on malformed success response', function () {
@@ -112,7 +112,7 @@ it('throws InvalidResponseException on malformed success response', function () 
         'created' => time(),
         'model' => 'gpt-test',
         // 'choices' is missing
-        'usage' => [ /* ... */],
+        'usage' => [/* ... */],
     ];
 
     Http::fake([
@@ -123,7 +123,7 @@ it('throws InvalidResponseException on malformed success response', function () 
     $client = app(LlmClientInterface::class);
     $request = new ChatRequest(['prompt' => 'Test Malformed']);
 
-    expect(fn() => $client->chat($request))->toThrow(InvalidResponseException::class, 'Invalid response structure received from OpenAI API');
+    expect(fn () => $client->chat($request))->toThrow(InvalidResponseException::class, 'Invalid response structure received from OpenAI API');
 });
 
 it('sends organization header when configured', function () {

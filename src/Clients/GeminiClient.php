@@ -35,10 +35,10 @@ class GeminiClient implements LlmClientInterface
     protected string $apiVersion;
 
     /**
-     * @param HttpClientFactory $httpFactory The Laravel HTTP client factory.
-     * @param string $apiKey The Gemini API key.
-     * @param string $model The default Gemini model ID to use for requests.
-     * @param array $options Additional configuration options (e.g., base_uri, timeout, version, safety_settings).
+     * @param  HttpClientFactory  $httpFactory  The Laravel HTTP client factory.
+     * @param  string  $apiKey  The Gemini API key.
+     * @param  string  $model  The default Gemini model ID to use for requests.
+     * @param  array  $options  Additional configuration options (e.g., base_uri, timeout, version, safety_settings).
      */
     public function __construct(
         protected HttpClientFactory $httpFactory,
@@ -96,8 +96,9 @@ class GeminiClient implements LlmClientInterface
     /**
      * Sends a chat request to the Gemini API.
      *
-     * @param ChatRequest $request The DTO containing the prompt, history, and options.
+     * @param  ChatRequest  $request  The DTO containing the prompt, history, and options.
      * @return ChatResponse The DTO containing the API response.
+     *
      * @throws AuthenticationException If the API key is invalid or permissions are insufficient (401, 403).
      * @throws InvalidResponseException If the API response structure is invalid or the request was blocked.
      * @throws LlmApiException For other API errors (rate limits, server errors, bad requests etc.).
@@ -144,8 +145,8 @@ class GeminiClient implements LlmClientInterface
                     $reason = $responseData['promptFeedback']['blockReason'];
                     $message = "Gemini request blocked due to safety settings: {$reason}.";
                     // Optionally include detailed ratings if present
-                    if (!empty($responseData['promptFeedback']['safetyRatings'])) {
-                        $message .= " Safety Ratings: " . json_encode($responseData['promptFeedback']['safetyRatings']);
+                    if (! empty($responseData['promptFeedback']['safetyRatings'])) {
+                        $message .= ' Safety Ratings: '.json_encode($responseData['promptFeedback']['safetyRatings']);
                     }
                     // We classify blocking as an InvalidResponseException
                     throw new InvalidResponseException($message);
@@ -183,8 +184,9 @@ class GeminiClient implements LlmClientInterface
      * ensuring alternating roles (`user`, `model`), merging consecutive messages from the same role,
      * handling system prompts, and mapping options to `generationConfig`.
      *
-     * @param ChatRequest $request The request DTO.
+     * @param  ChatRequest  $request  The request DTO.
      * @return array The payload ready for JSON encoding.
+     *
      * @throws LlmApiException If the message sequence is invalid for Gemini.
      */
     protected function buildPayload(ChatRequest $request): array
@@ -224,7 +226,7 @@ class GeminiClient implements LlmClientInterface
             }
 
             // Check if the current message role is the same as the last one in $contents.
-            if (!empty($contents) && $contents[array_key_last($contents)]['role'] === $geminiRole) {
+            if (! empty($contents) && $contents[array_key_last($contents)]['role'] === $geminiRole) {
                 // Merge content into the last message's parts array.
                 $contents[array_key_last($contents)]['parts'][] = ['text' => $content];
             } else {
@@ -248,7 +250,7 @@ class GeminiClient implements LlmClientInterface
         // --- Handle Generation Config ---
         // Maps options from ChatRequest to Gemini's generationConfig object.
         $generationConfig = [];
-        if (!empty($request->options)) {
+        if (! empty($request->options)) {
             // Direct mapping for simple options
             $allowedOptions = ['temperature', 'topP', 'topK', 'candidateCount']; // Added candidateCount
             $generationConfig = array_intersect_key($request->options, array_flip($allowedOptions));
@@ -271,7 +273,7 @@ class GeminiClient implements LlmClientInterface
             // but we don't map this automatically from options currently.
         }
 
-        if (!empty($generationConfig)) {
+        if (! empty($generationConfig)) {
             $payload['generationConfig'] = $generationConfig;
         }
 
@@ -287,8 +289,8 @@ class GeminiClient implements LlmClientInterface
     /**
      * Maps the successful Gemini API response data array to the ChatResponse DTO.
      *
-     * @param array $responseData The decoded JSON response data from the API.
-     * @param bool $wasJsonModeRequested Indicates if the original request asked for JSON.
+     * @param  array  $responseData  The decoded JSON response data from the API.
+     * @param  bool  $wasJsonModeRequested  Indicates if the original request asked for JSON.
      * @return ChatResponse The populated response DTO.
      */
     protected function mapResponseToDTO(array $responseData, bool $wasJsonModeRequested): ChatResponse
@@ -296,7 +298,7 @@ class GeminiClient implements LlmClientInterface
         // Extract primary content from the first candidate
         $content = $responseData['candidates'][0]['content']['parts'][0]['text'] ?? '';
         $finishReason = $responseData['candidates'][0]['finishReason'] ?? 'unknown';
-        $id = 'gemini-' . bin2hex(random_bytes(8));
+        $id = 'gemini-'.bin2hex(random_bytes(8));
         $usage = null;
         if (isset($responseData['usageMetadata'])) {
             $usage = [
@@ -306,7 +308,7 @@ class GeminiClient implements LlmClientInterface
             ];
         }
         $decodedJson = null;
-        if ($wasJsonModeRequested && !empty($content)) {
+        if ($wasJsonModeRequested && ! empty($content)) {
             $decoded = json_decode($content, true);
             if (json_last_error() === JSON_ERROR_NONE) {
                 $decodedJson = $decoded;
@@ -322,14 +324,15 @@ class GeminiClient implements LlmClientInterface
             'usage' => $usage,
             'isJson' => $wasJsonModeRequested && ($decodedJson !== null),
             'decodedJsonContent' => $decodedJson,
-            'rawResponse' => $responseData
+            'rawResponse' => $responseData,
         ]);
     }
 
     /**
      * Handles non-successful (non-401/403) HTTP responses from Gemini.
      *
-     * @param Response $response The failed HTTP response.
+     * @param  Response  $response  The failed HTTP response.
+     *
      * @throws LlmApiException Mapped API error.
      */
     protected function handleErrorResponse(Response $response): void
@@ -362,7 +365,7 @@ class GeminiClient implements LlmClientInterface
      * Checks for the presence of candidate content.
      * Does not validate safety block reasons here, as that's handled separately in chat().
      *
-     * @param array|null $responseData The decoded JSON data from the response.
+     * @param  array|null  $responseData  The decoded JSON data from the response.
      * @return bool True if the structure seems valid for a successful response, false otherwise.
      */
     protected function isValidResponseStructure(?array $responseData): bool

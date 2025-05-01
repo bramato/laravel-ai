@@ -14,11 +14,11 @@ class SummarizationService extends BaseAiService
     /**
      * Summarize the given text.
      *
-     * @param string $text The text to summarize.
-     * @param string|null $format Optional instruction for the summary format (e.g., "paragraph", "bullet points", "single sentence").
-     * @param int|null $lengthTarget Optional target length (e.g., number of words or sentences). Interpretation depends on the LLM.
-     * @param LlmModel|null $model Optional: Specific LlmModel to use.
-     * @param array $options Optional: Provider-specific options.
+     * @param  string  $text  The text to summarize.
+     * @param  string|null  $format  Optional instruction for the summary format (e.g., "paragraph", "bullet points", "single sentence").
+     * @param  int|null  $lengthTarget  Optional target length (e.g., number of words or sentences). Interpretation depends on the LLM.
+     * @param  LlmModel|null  $model  Optional: Specific LlmModel to use.
+     * @param  array  $options  Optional: Provider-specific options.
      * @return string|null The summary text, or null on failure.
      */
     public function summarize(
@@ -33,7 +33,7 @@ class SummarizationService extends BaseAiService
         }
 
         // Build the core instruction
-        $instruction = "Summarize the following text.";
+        $instruction = 'Summarize the following text.';
 
         // Add format constraints if provided
         if ($format) {
@@ -74,10 +74,11 @@ PROMPT;
             );
 
             // Return the trimmed summary, or null if empty/error
-            return !empty($summary) ? trim($summary) : null;
+            return ! empty($summary) ? trim($summary) : null;
         } catch (\Exception $e) {
             // Log the exception or handle it as needed
             report($e); // Using Laravel's report helper
+
             return null; // Return null on error
         }
     }

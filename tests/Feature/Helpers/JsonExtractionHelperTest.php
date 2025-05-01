@@ -16,6 +16,7 @@ class JsonExtractionHelperTest extends TestCase
     {
         $modelId = 'test-model'; // Consistent model ID
         $responseId = 'test-resp-id-123'; // Consistent response ID
+
         return new ChatResponse([
             'content' => $content,
             'finishReason' => $finishReason ?? 'unknown', // Ensure non-null
@@ -39,6 +40,7 @@ class JsonExtractionHelperTest extends TestCase
                     $this->assertTrue($request->jsonMode);
                     $this->assertStringContainsString('Extract user details', $request->prompt);
                     $this->assertStringContainsString('Some text about John Doe', $request->prompt);
+
                     return true;
                 })
                 ->andReturn($this->mockClientResponse('{"name": "John Doe", "age": 30}', true));
@@ -68,6 +70,7 @@ class JsonExtractionHelperTest extends TestCase
                     $this->assertEquals('gemini-pro', $request->options['model'] ?? null);
                     $this->assertStringContainsString('Extract item info', $request->prompt);
                     $this->assertStringContainsString('The item is a Widget, price 99.99', $request->prompt);
+
                     return true;
                 })
                 ->andReturn($this->mockClientResponse('{"item": "Widget", "price": 99.99}', true));
@@ -94,7 +97,7 @@ class JsonExtractionHelperTest extends TestCase
         $mockClient = $this->mock(LlmClientInterface::class, function (MockInterface $mock) {
             $mock->shouldReceive('chat')
                 ->once()
-                ->withArgs(fn(ChatRequest $request) => $request->jsonMode)
+                ->withArgs(fn (ChatRequest $request) => $request->jsonMode)
                 ->andReturn($this->mockClientResponse('This is not json {', false)); // Not JSON
         });
 
@@ -112,7 +115,7 @@ class JsonExtractionHelperTest extends TestCase
         $mockClient = $this->mock(LlmClientInterface::class, function (MockInterface $mock) {
             $mock->shouldReceive('chat')
                 ->once()
-                ->withArgs(fn(ChatRequest $request) => $request->jsonMode)
+                ->withArgs(fn (ChatRequest $request) => $request->jsonMode)
                 ->andReturn($this->mockClientResponse('"just a string"', true)); // Valid JSON, but not array/object
         });
 
@@ -130,7 +133,7 @@ class JsonExtractionHelperTest extends TestCase
         $mockClient = $this->mock(LlmClientInterface::class, function (MockInterface $mock) {
             $mock->shouldReceive('chat')
                 ->once()
-                ->withArgs(fn(ChatRequest $request) => $request->jsonMode)
+                ->withArgs(fn (ChatRequest $request) => $request->jsonMode)
                 ->andReturn($this->mockClientResponse('', false)); // Empty content
         });
 
@@ -146,7 +149,7 @@ class JsonExtractionHelperTest extends TestCase
     public function it_returns_null_if_llm_call_fails(): void
     {
         // Mock report helper if not already mocked globally
-        if (!function_exists('Bramato\LaravelAi\report')) { // Check namespaced function
+        if (! function_exists('Bramato\LaravelAi\report')) { // Check namespaced function
             eval('namespace Bramato\LaravelAi; function report($exception) { /* No-op for test */ } ');
         }
 

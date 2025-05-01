@@ -12,6 +12,7 @@ use Illuminate\Http\Client\Factory as HttpClientFactory;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
+use InvalidArgumentException;
 use Throwable;
 
 /**
@@ -25,10 +26,10 @@ class OpenAiClient implements LlmClientInterface
     protected PendingRequest $httpClient;
 
     /**
-     * @param HttpClientFactory $httpFactory The Laravel HTTP client factory.
-     * @param string $apiKey The OpenAI API key.
-     * @param string $model The default OpenAI model ID to use for requests.
-     * @param array $options Additional configuration options (e.g., base_uri, timeout, organization).
+     * @param  HttpClientFactory  $httpFactory  The Laravel HTTP client factory.
+     * @param  string  $apiKey  The OpenAI API key.
+     * @param  string  $model  The default OpenAI model ID to use for requests.
+     * @param  array  $options  Additional configuration options (e.g., base_uri, timeout, organization).
      */
     public function __construct(
         protected HttpClientFactory $httpFactory,
@@ -66,8 +67,9 @@ class OpenAiClient implements LlmClientInterface
     /**
      * Sends a chat request to the OpenAI API.
      *
-     * @param ChatRequest $request The DTO containing the prompt, history, and options.
+     * @param  ChatRequest  $request  The DTO containing the prompt, history, and options.
      * @return ChatResponse The DTO containing the API response.
+     *
      * @throws AuthenticationException If the API key is invalid (401).
      * @throws InvalidResponseException If the API response structure is invalid.
      * @throws LlmApiException For other API errors (rate limits, server errors, etc.).
@@ -120,13 +122,33 @@ class OpenAiClient implements LlmClientInterface
     /**
      * Builds the payload array for the OpenAI Chat Completions API request.
      *
-     * @param ChatRequest $request The request DTO.
+     * This method constructs the JSON payload sent to the OpenAI API,
+     * including model selection, message formatting (handling text and images),
+     * options, and response format (JSON mode).
+     *
+     * @param  ChatRequest  $request  The request DTO containing all input details.
      * @return array The payload ready for JSON encoding.
+     *
+     * @throws InvalidArgumentException If images are provided but the selected/default model doesn't support vision and no fallback is available.
      */
     protected function buildPayload(ChatRequest $request): array
     {
+        // Determine model, prioritizing options, then potentially vision requirement
+        $modelId = $request->options['model'] ?? $this->model;
+        if (! empty($request->images) && ! $this->isVisionModel($modelId)) {
+            // Attempt to switch to a default vision model if images provided but model doesn't support it
+            // You might want a more sophisticated model selection logic here
+            $visionModel = $this->getDefaultVisionModel();
+            if ($visionModel) {
+                $modelId = $visionModel;
+            } else {
+                // Or throw an exception if no vision model is available/configured
+                throw new InvalidArgumentException("Images provided but the selected model '{$modelId}' does not support vision, and no default vision model is configured.");
+            }
+        }
+
         $payload = [
-            'model' => $this->model,
+            'model' => $modelId, // Use determined model
             'messages' => [],
         ];
 
@@ -141,11 +163,36 @@ class OpenAiClient implements LlmClientInterface
             $payload['messages'][] = ['role' => $message['role'], 'content' => $message['content']];
         }
 
-        // Add the main user prompt
-        $payload['messages'][] = ['role' => 'user', 'content' => $request->prompt];
+        // Add the main user prompt and potentially images
+        $userMessageContent = [];
+        // Always add the text part first
+        $userMessageContent[] = ['type' => 'text', 'content' => $request->prompt];
+
+        // Add image URLs if provided
+        if (! empty($request->images)) {
+            foreach ($request->images as $imageUrl) {
+                if (filter_var($imageUrl, FILTER_VALIDATE_URL) || str_starts_with($imageUrl, 'data:image')) {
+                    $userMessageContent[] = [
+                        'type' => 'image_url',
+                        'image_url' => [
+                            // OpenAI API expects the URL directly in an object
+                            'url' => $imageUrl,
+                            // 'detail' => 'auto' // Optional: control image detail level (low, high, auto)
+                        ],
+                    ];
+                } else {
+                    // Handle invalid image URL/data URI? Log warning or throw exception?
+                    report('Invalid image format provided in ChatRequest: ' . $imageUrl);
+                    // For now, we'll just skip invalid ones.
+                }
+            }
+        }
+
+        // The user message content is now an array
+        $payload['messages'][] = ['role' => 'user', 'content' => $userMessageContent];
 
         // Add allowed options from the request DTO
-        if (!empty($request->options)) {
+        if (! empty($request->options)) {
             $allowedOptions = ['temperature', 'max_tokens', 'top_p', 'frequency_penalty', 'presence_penalty', 'stop', 'seed', 'stream', 'logprobs', 'top_logprobs', 'user']; // Added more standard OpenAI options
             $payload += array_intersect_key($request->options, array_flip($allowedOptions));
         }
@@ -161,10 +208,59 @@ class OpenAiClient implements LlmClientInterface
     }
 
     /**
+     * Checks if a given OpenAI model ID is known to support vision capabilities.
+     *
+     * This uses a hardcoded list of known vision model prefixes/names.
+     * Should be updated as new models are released by OpenAI.
+     *
+     * @param  string  $modelId  The model identifier (e.g., 'gpt-4-turbo', 'gpt-4o').
+     * @return bool True if the model is known to support vision, false otherwise.
+     */
+    protected function isVisionModel(string $modelId): bool
+    {
+        // Add known OpenAI vision model identifiers here
+        $visionModels = [
+            'gpt-4-vision-preview',
+            'gpt-4-turbo',
+            'gpt-4-turbo-2024-04-09',
+            'gpt-4o',
+            'gpt-4o-2024-05-13',
+            // Add other vision models as they become available
+        ];
+
+        return in_array(strtolower($modelId), array_map('strtolower', $visionModels));
+    }
+
+    /**
+     * Attempts to retrieve a default vision model ID.
+     *
+     * Currently returns a hardcoded known default (e.g., 'gpt-4o').
+     * Ideally, this could check configuration or query LlmModel in the future.
+     *
+     * @return string|null The model ID string if a default is found, otherwise null.
+     */
+    protected function getDefaultVisionModel(): ?string
+    {
+        // Prioritize a specific vision model from options if set
+        // e.g., $this->options['default_vision_model']
+
+        // Fallback to a known good default
+        // This should ideally come from config or LlmModel query
+        $knownVisionModels = ['gpt-4o', 'gpt-4-turbo'];
+        foreach ($knownVisionModels as $modelId) {
+            // Here you might check if the model is actually available/configured
+            // For simplicity, just return the first known one
+            return $modelId;
+        }
+
+        return null;
+    }
+
+    /**
      * Maps the successful OpenAI API response data array to the ChatResponse DTO.
      *
-     * @param array $responseData The decoded JSON response data from the API.
-     * @param bool $wasJsonModeRequested Indicates if the original request asked for JSON.
+     * @param  array  $responseData  The decoded JSON response data from the API.
+     * @param  bool  $wasJsonModeRequested  Indicates if the original request asked for JSON.
      * @return ChatResponse The populated response DTO.
      */
     protected function mapResponseToDTO(array $responseData, bool $wasJsonModeRequested): ChatResponse
@@ -172,7 +268,7 @@ class OpenAiClient implements LlmClientInterface
         $content = $responseData['choices'][0]['message']['content'] ?? '';
         $decodedJson = null;
 
-        if ($wasJsonModeRequested && !empty($content)) {
+        if ($wasJsonModeRequested && ! empty($content)) {
             $decoded = json_decode($content, true);
             if (json_last_error() === JSON_ERROR_NONE) {
                 $decodedJson = $decoded;
@@ -188,14 +284,15 @@ class OpenAiClient implements LlmClientInterface
             'usage' => $responseData['usage'] ?? null,
             'isJson' => $wasJsonModeRequested && ($decodedJson !== null),
             'decodedJsonContent' => $decodedJson,
-            'rawResponse' => $responseData
+            'rawResponse' => $responseData,
         ]);
     }
 
     /**
      * Handles non-successful (non-401) HTTP responses.
      *
-     * @param Response $response The failed HTTP response.
+     * @param  Response  $response  The failed HTTP response.
+     *
      * @throws LlmApiException Mapped API error.
      */
     protected function handleErrorResponse(Response $response): void
@@ -224,7 +321,7 @@ class OpenAiClient implements LlmClientInterface
     /**
      * Validates the basic structure of a successful OpenAI response array.
      *
-     * @param array|null $responseData The decoded JSON data from the response.
+     * @param  array|null  $responseData  The decoded JSON data from the response.
      * @return bool True if the structure seems valid for a successful response, false otherwise.
      */
     protected function isValidResponseStructure(?array $responseData): bool

@@ -35,7 +35,6 @@ abstract class TestCase extends Orchestra
      * Define environment setup.
      *
      * @param  \Illuminate\Foundation\Application  $app
-     * @return void
      */
     public function getEnvironmentSetUp($app): void
     {
@@ -51,7 +50,7 @@ abstract class TestCase extends Orchestra
 
         // Setup package config
         // Load the actual package config file
-        $packageConfigFile = __DIR__ . '/../config/laravel-ai.php';
+        $packageConfigFile = __DIR__.'/../config/laravel-ai.php';
         if (file_exists($packageConfigFile)) {
             // Merge the package config into the application's config
             $app['config']->set('laravel-ai', require $packageConfigFile);

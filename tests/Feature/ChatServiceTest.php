@@ -5,7 +5,7 @@ namespace Bramato\LaravelAi\Tests\Feature;
 use Bramato\LaravelAi\Contracts\LlmClientInterface;
 use Bramato\LaravelAi\DTOs\ChatRequest;
 use Bramato\LaravelAi\DTOs\ChatResponse;
-use Bramato\LaravelAi\Exceptions\LlmApiException; // Assuming we might test exceptions later
+// Assuming we might test exceptions later
 use Bramato\LaravelAi\Facades\LaravelAi; // Keep facade for potential future use, but avoid mocking it directly if possible
 use Bramato\LaravelAi\LaravelAiServiceProvider;
 use Bramato\LaravelAi\Models\LlmModel;
@@ -42,8 +42,7 @@ class ChatServiceTest extends TestCase
     /**
      * Helper to mock the default LlmClientInterface binding.
      *
-     * @param string|null $initialExpectedContent Optional initial content for the first call.
-     * @return MockInterface
+     * @param  string|null  $initialExpectedContent  Optional initial content for the first call.
      */
     private function mockLlmClient(?string $initialExpectedContent = 'Mocked response content.'): MockInterface
     {
@@ -67,6 +66,7 @@ class ChatServiceTest extends TestCase
                     ]);
                 });
         }
+
         return $mock; // Return the mock instance for potentially adding more expectations
     }
 
@@ -76,7 +76,7 @@ class ChatServiceTest extends TestCase
     private function createMockResponseData(string $content, string $model = 'mock-model', bool $isJson = false): array
     {
         return [
-            'id' => 'chatcmpl-' . uniqid(),
+            'id' => 'chatcmpl-'.uniqid(),
             'model' => $model,
             'content' => $content,
             'finishReason' => 'stop',
@@ -90,7 +90,7 @@ class ChatServiceTest extends TestCase
     /**
      * Override application setup to register provider aliases needed for mocking.
      *
-     * @param Application $app
+     * @param  Application  $app
      */
     protected function getEnvironmentSetUp($app)
     {
@@ -232,7 +232,7 @@ class ChatServiceTest extends TestCase
         $chat = ChatService::create(initialPrompt: 'Extract info', jsonData: $schema);
         $response = $chat->getResponse();
 
-        $this->assertEquals('Extract info' . $expectedPromptSuffix, $chat->getHistory()[0]['content']);
+        $this->assertEquals('Extract info'.$expectedPromptSuffix, $chat->getHistory()[0]['content']);
         $clientMock->shouldHaveReceived('chat')->withArgs(function (ChatRequest $request) use ($expectedPromptSuffix) {
             return $request->jsonMode === true && str_ends_with($request->prompt, $expectedPromptSuffix);
         });
@@ -246,11 +246,10 @@ class ChatServiceTest extends TestCase
         $schemaString = '{"user_id": "number", "status": "string"}';
         $expectedPromptSuffix = "\n\nPlease provide the response strictly in JSON format matching the following structure:\n```json\n{$schemaString}\n```";
 
-
         $chat = ChatService::create(initialPrompt: 'Get status', jsonData: $schemaString);
         $response = $chat->getResponse();
 
-        $this->assertEquals('Get status' . $expectedPromptSuffix, $chat->getHistory()[0]['content']);
+        $this->assertEquals('Get status'.$expectedPromptSuffix, $chat->getHistory()[0]['content']);
         $clientMock->shouldHaveReceived('chat')->withArgs(function (ChatRequest $request) use ($expectedPromptSuffix) {
             return $request->jsonMode === true && str_ends_with($request->prompt, $expectedPromptSuffix);
         });

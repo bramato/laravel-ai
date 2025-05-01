@@ -84,7 +84,7 @@ it('throws AuthenticationException on 401 error', function () {
     $request = new ChatRequest(['prompt' => 'Test DeepSeek Auth']);
 
     // Expect the specific message from DeepSeekClient handler
-    expect(fn() => $client->chat($request))->toThrow(AuthenticationException::class, 'Invalid API key');
+    expect(fn () => $client->chat($request))->toThrow(AuthenticationException::class, 'Invalid API key');
 });
 
 it('throws LlmApiException on 500 error', function () {
@@ -97,7 +97,7 @@ it('throws LlmApiException on 500 error', function () {
     $client = app(LlmClientInterface::class);
     $request = new ChatRequest(['prompt' => 'Test DeepSeek Server Error']);
 
-    expect(fn() => $client->chat($request))->toThrow(LlmApiException::class, 'DeepSeek API Error - Internal Server Error (busy): Server busy');
+    expect(fn () => $client->chat($request))->toThrow(LlmApiException::class, 'DeepSeek API Error - Internal Server Error (busy): Server busy');
 });
 
 it('throws InvalidResponseException on malformed success response', function () {
@@ -112,5 +112,5 @@ it('throws InvalidResponseException on malformed success response', function () 
     $client = app(LlmClientInterface::class);
     $request = new ChatRequest(['prompt' => 'Test DeepSeek Malformed']);
 
-    expect(fn() => $client->chat($request))->toThrow(InvalidResponseException::class, 'Invalid response structure received from DeepSeek API.');
+    expect(fn () => $client->chat($request))->toThrow(InvalidResponseException::class, 'Invalid response structure received from DeepSeek API.');
 });

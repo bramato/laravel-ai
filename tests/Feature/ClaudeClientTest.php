@@ -100,7 +100,7 @@ it('throws AuthenticationException on 401 error', function () use ($endpoint) {
     $request = new ChatRequest(['prompt' => 'Test Claude Auth 401']);
 
     // Expect specific message from ClaudeClient handler
-    expect(fn() => $client->chat($request))
+    expect(fn () => $client->chat($request))
         ->toThrow(AuthenticationException::class, 'Invalid API Key');
 });
 
@@ -115,7 +115,7 @@ it('throws AuthenticationException on 403 error', function () use ($endpoint) {
     $request = new ChatRequest(['prompt' => 'Test Claude Auth 403']);
 
     // Expect specific message from ClaudeClient handler
-    expect(fn() => $client->chat($request))
+    expect(fn () => $client->chat($request))
         ->toThrow(AuthenticationException::class, 'You do not have permission to use this model');
 });
 
@@ -130,7 +130,7 @@ it('throws LlmApiException on 400 error (e.g., invalid request)', function () us
     $request = new ChatRequest(['prompt' => 'Test Claude Bad Request', 'options' => ['max_tokens' => -1]]); // Let buildPayload catch this potentially
 
     // The error should be caught by buildPayload validation first
-    expect(fn() => $client->chat($request))
+    expect(fn () => $client->chat($request))
         ->toThrow(LlmApiException::class, 'Invalid option: max_tokens must be a positive integer for Claude.');
 
     // If buildPayload didn't catch it, the API error would be:
@@ -147,7 +147,7 @@ it('throws LlmApiException on invalid message sequence (consecutive user message
         ],
     ]);
 
-    expect(fn() => $client->chat($request))
+    expect(fn () => $client->chat($request))
         ->toThrow(LlmApiException::class, 'Invalid message sequence for Claude: Consecutive messages found from role \'user\'. History must alternate between \'user\' and \'assistant\'.');
 });
 
@@ -162,7 +162,7 @@ it('throws LlmApiException on invalid message sequence (last history message is 
         ],
     ]);
 
-    expect(fn() => $client->chat($request))
+    expect(fn () => $client->chat($request))
         ->toThrow(LlmApiException::class, 'Invalid message sequence for Claude: The last message in the history array must be from role \'assistant\' before adding the final user prompt.');
 });
 
@@ -179,8 +179,8 @@ it('throws InvalidResponseException on malformed success response', function () 
     $client = app(LlmClientInterface::class);
     $request = new ChatRequest(['prompt' => 'Test Claude Malformed']);
 
-    expect(fn() => $client->chat($request))
+    expect(fn () => $client->chat($request))
         ->toThrow(InvalidResponseException::class, 'Invalid response structure received from Claude API (missing expected fields).');
 });
 
-// Note: JSON mode tests are handled in JsonModeTest.php 
+// Note: JSON mode tests are handled in JsonModeTest.php

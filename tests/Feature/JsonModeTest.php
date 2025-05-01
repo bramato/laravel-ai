@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Http;
 beforeEach(function () {
     Http::preventStrayRequests();
     // Reset config to avoid test pollution
-    config(['laravel-ai' => require __DIR__ . '/../../config/laravel-ai.php']);
+    config(['laravel-ai' => require __DIR__.'/../../config/laravel-ai.php']);
 });
 
 // OpenAI JSON Mode Test
@@ -136,7 +136,7 @@ it('throws exception if Gemini JSON mode requested but api version is not v1beta
         'jsonMode' => true,
     ]);
 
-    expect(fn() => $client->chat($request))
+    expect(fn () => $client->chat($request))
         ->toThrow(LlmApiException::class, 'Gemini JSON mode requires the \'v1beta\' API version');
 });
 
@@ -159,7 +159,7 @@ it('handles Claude JSON mode via prompt and correctly decodes', function () {
     $expectedJsonResponse = ['user_id' => 123, 'name' => 'Claude'];
     // Claude needs explicit instruction, often including ```json ``` markers
     // The client should extract the JSON even with surrounding text.
-    $fakeResponseContent = "Okay, here is the JSON data:\n```json\n" . json_encode($expectedJsonResponse, JSON_PRETTY_PRINT) . "\n```\nSome trailing text.";
+    $fakeResponseContent = "Okay, here is the JSON data:\n```json\n".json_encode($expectedJsonResponse, JSON_PRETTY_PRINT)."\n```\nSome trailing text.";
     // Uses global helper from tests/Pest.php
     $fakeResponseData = getFakeClaudeSuccessResponse(
         id: 'msg-claude-json',
@@ -196,7 +196,7 @@ it('sets isJson to false and decodedJsonContent to null when jsonMode is true bu
     config()->set('laravel-ai.providers.openai.model', 'test-model');
     config()->set('laravel-ai.providers.openai.options.base_uri', 'https://api.openai.com/v1');
 
-    $notJsonContent = "This is just plain text, not JSON.";
+    $notJsonContent = 'This is just plain text, not JSON.';
     // Uses global helper from tests/Pest.php
     $fakeResponseData = getFakeSuccessResponseData(content: $notJsonContent);
     Http::fake(['api.openai.com/v1/chat/completions' => Http::response($fakeResponseData, 200)]);

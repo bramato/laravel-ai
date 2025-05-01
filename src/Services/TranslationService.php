@@ -14,11 +14,11 @@ class TranslationService extends BaseAiService
     /**
      * Translate the given text to the target language.
      *
-     * @param string $text The text to translate.
-     * @param string $targetLanguage The target language (e.g., "French", "Español", "it").
-     * @param string|null $sourceLanguage Optional: The source language (e.g., "English", "de"). If null, the LLM will attempt auto-detection.
-     * @param LlmModel|null $model Optional: Specific LlmModel to use.
-     * @param array $options Optional: Provider-specific options.
+     * @param  string  $text  The text to translate.
+     * @param  string  $targetLanguage  The target language (e.g., "French", "Español", "it").
+     * @param  string|null  $sourceLanguage  Optional: The source language (e.g., "English", "de"). If null, the LLM will attempt auto-detection.
+     * @param  LlmModel|null  $model  Optional: Specific LlmModel to use.
+     * @param  array  $options  Optional: Provider-specific options.
      * @return string|null The translated text, or null on failure.
      */
     public function translate(
@@ -42,11 +42,11 @@ class TranslationService extends BaseAiService
         if ($sourceLanguage && trim($sourceLanguage) !== '') {
             $instruction .= " Assume the original text is in {$sourceLanguage}.";
         } else {
-            $instruction .= " Try to auto-detect the source language if needed.";
+            $instruction .= ' Try to auto-detect the source language if needed.';
         }
 
         // Instruction for the AI: only output the translation
-        $instruction .= " Respond ONLY with the translated text.";
+        $instruction .= ' Respond ONLY with the translated text.';
 
         // Use ask() helper as system message isn't strictly necessary here,
         // the instruction within the prompt is clear enough.
@@ -70,10 +70,11 @@ PROMPT;
             );
 
             // Return the trimmed translation, or null if empty/error
-            return !empty($translation) ? trim($translation) : null;
+            return ! empty($translation) ? trim($translation) : null;
         } catch (\Exception $e) {
             // Log the exception or handle it as needed
             report($e); // Using Laravel's report helper
+
             return null; // Return null on error
         }
     }

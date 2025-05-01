@@ -55,7 +55,7 @@ it('throws validation exception if prompt is missing', function () {
 it('throws validation exception for invalid history structure missing role', function () {
     new ChatRequest([
         'prompt' => 'Test',
-        'history' => [['content' => 'Something said']]
+        'history' => [['content' => 'Something said']],
     ]);
 })->throws(ValidationException::class, 'The history.0.role field is required');
 
@@ -63,10 +63,9 @@ it('throws validation exception for invalid history structure missing role', fun
 it('throws validation exception for invalid history role', function () {
     new ChatRequest([
         'prompt' => 'Test',
-        'history' => [['role' => 'invalid-role', 'content' => 'Something said']]
+        'history' => [['role' => 'invalid-role', 'content' => 'Something said']],
     ]);
 })->throws(ValidationException::class, 'The selected history.0.role is invalid.');
-
 
 // Test validation fails for invalid jsonMode type
 it('throws validation exception for invalid jsonMode type', function () {

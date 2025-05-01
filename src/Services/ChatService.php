@@ -12,11 +12,17 @@ use InvalidArgumentException;
 class ChatService
 {
     protected LlmClientInterface $client;
+
     protected array $history = [];
+
     protected ?string $systemMessage = null;
+
     protected array $options = [];
+
     protected ?string $sessionProvider = null;
+
     protected ?string $sessionModel = null;
+
     protected bool $sessionJsonMode = false; // Flag for JSON mode activation
 
     public function __construct(LlmClientInterface $client)
@@ -29,13 +35,12 @@ class ChatService
     /**
      * Start a new chat session (static factory method).
      *
-     * @param string           $initialPrompt The first user message.
-     * @param string|null      $systemMessage Optional system message for the session.
-     * @param LlmModel|null    $llmModel      Optional LlmModel instance to define provider and model.
-     * @param array            $options       Optional options override for this session.
-     * @param mixed            $jsonData      Null, bool, array, or JSON string to control JSON mode and provide schema/example.
+     * @param  string  $initialPrompt  The first user message.
+     * @param  string|null  $systemMessage  Optional system message for the session.
+     * @param  LlmModel|null  $llmModel  Optional LlmModel instance to define provider and model.
+     * @param  array  $options  Optional options override for this session.
+     * @param  mixed  $jsonData  Null, bool, array, or JSON string to control JSON mode and provide schema/example.
      *
-     * @return self
      * @throws InvalidArgumentException If jsonData is an invalid array or non-JSON string.
      */
     public static function create(
@@ -48,6 +53,7 @@ class ChatService
         /** @var ChatService $instance */
         $instance = app(self::class);
         $instance->startSession($initialPrompt, $systemMessage, $llmModel, $options, $jsonData);
+
         return $instance;
     }
 
@@ -93,7 +99,7 @@ class ChatService
 
         // Append schema to prompt if available
         if ($this->sessionJsonMode && $jsonSchemaString) {
-            $promptToUse .= "\n\nPlease provide the response strictly in JSON format matching the following structure:\n```json\n" . $jsonSchemaString . "\n```";
+            $promptToUse .= "\n\nPlease provide the response strictly in JSON format matching the following structure:\n```json\n".$jsonSchemaString."\n```";
         }
 
         // Add the potentially modified initial user prompt
@@ -105,7 +111,6 @@ class ChatService
      *
      * Automatically appends the assistant's response to the history.
      *
-     * @return ChatResponse
      * @throws \RuntimeException If the history is empty or doesn't end with a user message.
      */
     public function getResponse(): ChatResponse
@@ -158,15 +163,14 @@ class ChatService
     /**
      * Add a message to the current chat session's history.
      *
-     * @param string $role    The role ('user' or 'assistant').
-     * @param string $content The message content.
+     * @param  string  $role  The role ('user' or 'assistant').
+     * @param  string  $content  The message content.
      *
-     * @return self
      * @throws InvalidArgumentException If the role is invalid.
      */
     public function addMessage(string $role, string $content): self
     {
-        if (!in_array($role, ['user', 'assistant'])) {
+        if (! in_array($role, ['user', 'assistant'])) {
             throw new InvalidArgumentException('Invalid role specified. Must be \'user\' or \'assistant\'.');
         }
 
@@ -181,8 +185,6 @@ class ChatService
 
     /**
      * Get the current conversation history.
-     *
-     * @return array
      */
     public function getHistory(): array
     {
@@ -191,49 +193,43 @@ class ChatService
 
     /**
      * Set the provider for the current session, overriding the default client's provider.
-     *
-     * @param string $provider
-     * @return self
      */
     public function setProvider(string $provider): self
     {
         $this->sessionProvider = $provider;
+
         return $this;
     }
 
     /**
      * Set the model for the current session, overriding the default client's model.
-     *
-     * @param string $model
-     * @return self
      */
     public function setModel(string $model): self
     {
         $this->sessionModel = $model;
+
         return $this;
     }
 
     /**
      * Set the options for the current session, overriding the default client's options.
      *
-     * @param array $options
-     * @param bool $merge If true, merge with existing options, otherwise replace.
-     * @return self
+     * @param  bool  $merge  If true, merge with existing options, otherwise replace.
      */
     public function setOptions(array $options, bool $merge = false): self
     {
         $this->options = $merge ? array_merge($this->options, $options) : $options;
+
         return $this;
     }
 
     /**
      * Clear the current conversation history.
-     *
-     * @return self
      */
     public function clearHistory(): self
     {
         $this->history = [];
+
         // Consider if system message and other session settings should also be cleared.
         // For now, only clearing history.
         return $this;

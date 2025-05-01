@@ -14,10 +14,10 @@ class ClassificationService extends BaseAiService
     /**
      * Classify the given text into one of the provided categories.
      *
-     * @param string $text The text to classify.
-     * @param array<int, string> $categories An array of possible categories.
-     * @param LlmModel|null $model Optional: Specific LlmModel to use.
-     * @param array $options Optional: Provider-specific options.
+     * @param  string  $text  The text to classify.
+     * @param  array<int, string>  $categories  An array of possible categories.
+     * @param  LlmModel|null  $model  Optional: Specific LlmModel to use.
+     * @param  array  $options  Optional: Provider-specific options.
      * @return string|null The chosen category string, or null if classification fails or returns an invalid category.
      */
     public function classify(string $text, array $categories, ?LlmModel $model = null, array $options = []): ?string
@@ -29,13 +29,13 @@ class ClassificationService extends BaseAiService
         // Ensure categories are simple strings and prepare for prompt
         $processedCategories = [];
         foreach ($categories as $category) {
-            if (!is_string($category) || trim($category) === '') {
+            if (! is_string($category) || trim($category) === '') {
                 throw new InvalidArgumentException('Categories must be non-empty strings.');
             }
             $processedCategories[] = trim($category);
         }
 
-        $categoryList = "- " . implode("\n- ", $processedCategories);
+        $categoryList = '- ' . implode("\n- ", $processedCategories);
 
         // Construct the prompt
         $systemMessage = <<<PROMPT
@@ -78,6 +78,7 @@ PROMPT;
         } catch (\Exception $e) {
             // Log the exception or handle it as needed
             report($e); // Using Laravel's report helper
+
             return null; // Return null on error
         }
     }
