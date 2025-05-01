@@ -9,20 +9,8 @@ use InvalidArgumentException;
 /**
  * Service for summarizing text.
  */
-class SummarizationService
+class SummarizationService extends BaseAiService
 {
-    protected LaravelAiManager $laravelAi;
-
-    /**
-     * SummarizationService constructor.
-     *
-     * @param LaravelAiManager $laravelAi The main AI manager instance.
-     */
-    public function __construct(LaravelAiManager $laravelAi)
-    {
-        $this->laravelAi = $laravelAi;
-    }
-
     /**
      * Summarize the given text.
      *

@@ -9,20 +9,8 @@ use InvalidArgumentException;
 /**
  * Service for classifying text into predefined categories.
  */
-class ClassificationService
+class ClassificationService extends BaseAiService
 {
-    protected LaravelAiManager $laravelAi;
-
-    /**
-     * ClassificationService constructor.
-     *
-     * @param LaravelAiManager $laravelAi The main AI manager instance.
-     */
-    public function __construct(LaravelAiManager $laravelAi)
-    {
-        $this->laravelAi = $laravelAi;
-    }
-
     /**
      * Classify the given text into one of the provided categories.
      *

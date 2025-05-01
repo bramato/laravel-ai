@@ -9,20 +9,8 @@ use InvalidArgumentException;
 /**
  * Service for translating text.
  */
-class TranslationService
+class TranslationService extends BaseAiService
 {
-    protected LaravelAiManager $laravelAi;
-
-    /**
-     * TranslationService constructor.
-     *
-     * @param LaravelAiManager $laravelAi The main AI manager instance.
-     */
-    public function __construct(LaravelAiManager $laravelAi)
-    {
-        $this->laravelAi = $laravelAi;
-    }
-
     /**
      * Translate the given text to the target language.
      *
